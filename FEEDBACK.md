@@ -3,6 +3,17 @@
 Standing rules from the account owner. Every content change must respect
 these; add new entries at the top when feedback comes in.
 
+## 2026-07-04 — multi-shot reel review (8/10)
+- ❌ VO said "serve with chutney" while video still showed cooking → ✅ fixed:
+  VO sentence order now mirrors the beat order (serve line lands on the
+  final reveal beat).
+- Standing: voiceover must ALWAYS end with "follow for more"; a small
+  follow bar also appears on the final beat (kept small/safe-zone — big
+  end cards hurt completion).
+- ❌ (earlier same day) VO outlived the video → ✅ pace-fit retry.
+- ❌ ingredients shown but not used in process → ✅ prompt linkage
+  ("same ingredients and brass bowls from the earlier shot").
+
 ## 2026-07-04 — first AI reel review ("very bad")
 - ❌ Voiceover read "180C/gas 4" as digits → ✅ fixed: temperatures/units/
   times are converted to everyday words (high/medium/low heat, "a few
