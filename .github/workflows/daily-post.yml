@@ -1,0 +1,40 @@
+name: Daily Instagram news post
+
+on:
+  schedule:
+    # 8:00 AM IST (2:30 AM UTC) every day
+    - cron: "30 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate news card and caption
+        run: python src/generate.py
+
+      - name: Commit and push the image (Instagram needs a public URL)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add posts/
+          git commit -m "Daily post $(TZ=Asia/Kolkata date +%F)"
+          git push
+
+      - name: Publish to Instagram
+        env:
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+        run: python src/publish.py
