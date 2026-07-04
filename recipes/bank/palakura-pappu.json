@@ -1,0 +1,63 @@
+{
+  "name": "Palakura Pappu",
+  "category": "Dal",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "1 cup toor dal",
+      "measure": ""
+    },
+    {
+      "name": "2 bunches spinach (palakura)",
+      "measure": ""
+    },
+    {
+      "name": "1 onion",
+      "measure": ""
+    },
+    {
+      "name": "2 green chillies",
+      "measure": ""
+    },
+    {
+      "name": "4 garlic cloves",
+      "measure": ""
+    },
+    {
+      "name": "Small ball of tamarind",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp mustard seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp cumin",
+      "measure": ""
+    },
+    {
+      "name": "Curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "Turmeric",
+      "measure": ""
+    },
+    {
+      "name": "Salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Pressure cook the dal with chopped spinach, onion, chillies and turmeric.",
+    "Mash lightly, add tamarind water and salt, and simmer for five minutes.",
+    "Make a tadka of mustard, cumin, garlic and curry leaves in oil.",
+    "Pour the tadka over the pappu.",
+    "Serve with hot rice and ghee."
+  ],
+  "tags": "healthy,dal"
+}

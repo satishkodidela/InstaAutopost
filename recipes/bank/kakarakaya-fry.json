@@ -1,0 +1,55 @@
+{
+  "name": "Kakarakaya Vepudu",
+  "category": "Curry",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "250g bitter gourd (kakarakaya)",
+      "measure": ""
+    },
+    {
+      "name": "1 onion",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp red chilli powder",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp jaggery powder",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp peanut powder",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp mustard seeds",
+      "measure": ""
+    },
+    {
+      "name": "Curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "3 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "Turmeric",
+      "measure": ""
+    },
+    {
+      "name": "Salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Slice the bitter gourd thin, rub with salt and turmeric and rest for 15 minutes, then squeeze out the juice.",
+    "Heat oil, crackle mustard seeds and fry the onion and curry leaves.",
+    "Add the bitter gourd slices and fry on medium heat until browned and crisp.",
+    "Sprinkle chilli powder, jaggery and peanut powder and toss.",
+    "Fry for two more minutes — bitterness gone, flavour on!"
+  ],
+  "tags": "veg,healthy"
+}

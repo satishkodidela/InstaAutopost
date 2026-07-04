@@ -1,0 +1,67 @@
+{
+  "name": "Sambar",
+  "category": "Dal",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "1 cup toor dal",
+      "measure": ""
+    },
+    {
+      "name": "1 drumstick",
+      "measure": ""
+    },
+    {
+      "name": "1 carrot",
+      "measure": ""
+    },
+    {
+      "name": "5 shallots",
+      "measure": ""
+    },
+    {
+      "name": "1 tomato",
+      "measure": ""
+    },
+    {
+      "name": "Small ball of tamarind",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp sambar powder",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp mustard seeds",
+      "measure": ""
+    },
+    {
+      "name": "2 dry red chillies",
+      "measure": ""
+    },
+    {
+      "name": "Curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "Turmeric",
+      "measure": ""
+    },
+    {
+      "name": "Salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Pressure cook the dal with turmeric until soft and mash it.",
+    "Boil the vegetables with tamarind water, salt and sambar powder until tender.",
+    "Add the mashed dal and simmer for ten minutes.",
+    "Make a tadka of mustard, red chillies and curry leaves in oil and pour over.",
+    "Serve with rice, idli or dosa."
+  ],
+  "tags": "classic,dal"
+}

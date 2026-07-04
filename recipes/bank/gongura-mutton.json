@@ -1,0 +1,55 @@
+{
+  "name": "Gongura Mutton",
+  "category": "Curry",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "500g mutton",
+      "measure": ""
+    },
+    {
+      "name": "2 bunches gongura leaves",
+      "measure": ""
+    },
+    {
+      "name": "2 onions",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp ginger garlic paste",
+      "measure": ""
+    },
+    {
+      "name": "3 tbsp red chilli powder",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp garam masala",
+      "measure": ""
+    },
+    {
+      "name": "4 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "Curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "Turmeric",
+      "measure": ""
+    },
+    {
+      "name": "Salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Pressure cook the mutton with turmeric, salt and half the ginger garlic paste until tender.",
+    "Fry the gongura leaves separately until wilted and mash them.",
+    "Fry onions in oil until golden, add remaining paste, chilli powder and the cooked mutton.",
+    "Add the mashed gongura and simmer until the gravy coats the mutton and oil separates.",
+    "Finish with garam masala and curry leaves. Serve with rice."
+  ],
+  "tags": "andhra,nonveg,special"
+}

@@ -1,0 +1,51 @@
+{
+  "name": "Dondakaya Vepudu",
+  "category": "Curry",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "250g ivy gourd (dondakaya)",
+      "measure": ""
+    },
+    {
+      "name": "1 onion",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp red chilli powder",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp peanut powder",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp mustard seeds",
+      "measure": ""
+    },
+    {
+      "name": "Curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "3 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "Turmeric",
+      "measure": ""
+    },
+    {
+      "name": "Salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Slice the dondakaya lengthwise into thin strips.",
+    "Heat oil, crackle mustard seeds and add curry leaves and sliced onion.",
+    "Add the dondakaya with turmeric and salt, and fry uncovered on medium heat.",
+    "When they shrink and brown, sprinkle chilli powder and peanut powder.",
+    "Fry two more minutes and serve with rice."
+  ],
+  "tags": "veg,everyday"
+}

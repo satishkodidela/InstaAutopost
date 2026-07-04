@@ -1,0 +1,55 @@
+{
+  "name": "Gutti Vankaya Kura",
+  "category": "Curry",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "8 small brinjals",
+      "measure": ""
+    },
+    {
+      "name": "3 tbsp peanuts",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp sesame seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp coriander seeds",
+      "measure": ""
+    },
+    {
+      "name": "4 dry red chillies",
+      "measure": ""
+    },
+    {
+      "name": "1 onion",
+      "measure": ""
+    },
+    {
+      "name": "Small ball of tamarind",
+      "measure": ""
+    },
+    {
+      "name": "3 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "Curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "Salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Dry roast peanuts, sesame, coriander seeds and red chillies, then grind with tamarind and salt into a stuffing masala.",
+    "Slit the brinjals crosswise keeping the stem intact, and stuff them generously with the masala.",
+    "Heat oil in a kadai, place the stuffed brinjals and fry gently on low heat, turning carefully.",
+    "Add the remaining masala with a little water, cover and simmer until the brinjals are soft.",
+    "Finish with curry leaves and serve with rice or chapati."
+  ],
+  "tags": "classic,curry"
+}

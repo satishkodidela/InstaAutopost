@@ -1,0 +1,51 @@
+{
+  "name": "Aratikaya Vepudu",
+  "category": "Curry",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "3 raw bananas",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp red chilli powder",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp coriander powder",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp mustard seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp chana dal",
+      "measure": ""
+    },
+    {
+      "name": "Curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "3 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "Turmeric",
+      "measure": ""
+    },
+    {
+      "name": "Salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Peel and cube the raw bananas and soak in turmeric water.",
+    "Heat oil, crackle mustard seeds and chana dal, then add curry leaves.",
+    "Add the drained banana cubes and fry on medium heat until they soften.",
+    "Sprinkle chilli powder, coriander powder and salt.",
+    "Fry until the edges crisp up. Serve with rice and pappu."
+  ],
+  "tags": "veg,quick"
+}

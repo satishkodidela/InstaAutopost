@@ -1,0 +1,43 @@
+{
+  "name": "Semiya Payasam",
+  "category": "Dessert",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "1 cup vermicelli (semiya)",
+      "measure": ""
+    },
+    {
+      "name": "4 cups milk",
+      "measure": ""
+    },
+    {
+      "name": "half cup sugar",
+      "measure": ""
+    },
+    {
+      "name": "10 cashews",
+      "measure": ""
+    },
+    {
+      "name": "10 raisins",
+      "measure": ""
+    },
+    {
+      "name": "Pinch of cardamom powder",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp ghee",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Fry cashews and raisins in ghee until golden and set aside.",
+    "In the same ghee, roast the vermicelli until light brown.",
+    "Boil the milk, add the vermicelli and cook until soft.",
+    "Add sugar and cardamom and simmer until slightly thick.",
+    "Top with fried cashews and raisins. Serve warm or chilled."
+  ],
+  "tags": "festival,sweet,ugadi,sankranti"
+}

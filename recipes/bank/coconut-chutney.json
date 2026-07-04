@@ -1,0 +1,50 @@
+{
+  "name": "Kobbari Pachadi",
+  "category": "Chutney",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "1 cup fresh grated coconut",
+      "measure": ""
+    },
+    {
+      "name": "2 green chillies",
+      "measure": ""
+    },
+    {
+      "name": "1 inch ginger",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp roasted chana dal",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp mustard seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 dry red chilli",
+      "measure": ""
+    },
+    {
+      "name": "Curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "Salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Grind coconut, green chillies, ginger, roasted chana dal and salt with a little water into a smooth chutney.",
+    "Heat oil and crackle mustard seeds, red chilli and curry leaves.",
+    "Pour the tadka over the chutney and mix.",
+    "Serve with dosa, idli or pesarattu."
+  ],
+  "tags": "chutney,quick"
+}

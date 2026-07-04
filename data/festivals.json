@@ -1,0 +1,93 @@
+[
+  {
+    "name": "Bhogi",
+    "date": "01-13",
+    "tags": [
+      "festival",
+      "sankranti"
+    ]
+  },
+  {
+    "name": "Sankranti",
+    "date": "01-14",
+    "tags": [
+      "festival",
+      "sankranti",
+      "sweet"
+    ]
+  },
+  {
+    "name": "Kanuma",
+    "date": "01-15",
+    "tags": [
+      "festival",
+      "sankranti"
+    ]
+  },
+  {
+    "name": "Ugadi",
+    "date": "03-19",
+    "tags": [
+      "festival",
+      "ugadi",
+      "sweet"
+    ],
+    "note": "lunar - verify each year"
+  },
+  {
+    "name": "Sri Rama Navami",
+    "date": "03-26",
+    "tags": [
+      "festival",
+      "sweet"
+    ],
+    "note": "lunar - verify each year"
+  },
+  {
+    "name": "Varalakshmi Vratham",
+    "date": "08-08",
+    "tags": [
+      "festival",
+      "sweet"
+    ],
+    "note": "lunar - verify each year"
+  },
+  {
+    "name": "Vinayaka Chavithi",
+    "date": "09-14",
+    "tags": [
+      "festival",
+      "snack",
+      "sweet"
+    ],
+    "note": "lunar - verify each year"
+  },
+  {
+    "name": "Bathukamma",
+    "date": "10-20",
+    "tags": [
+      "festival",
+      "telangana"
+    ],
+    "note": "lunar - verify each year"
+  },
+  {
+    "name": "Dasara",
+    "date": "10-29",
+    "tags": [
+      "festival",
+      "special"
+    ],
+    "note": "lunar - verify each year"
+  },
+  {
+    "name": "Deepavali",
+    "date": "11-08",
+    "tags": [
+      "festival",
+      "sweet",
+      "snack"
+    ],
+    "note": "lunar - verify each year"
+  }
+]

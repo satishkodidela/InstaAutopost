@@ -1,0 +1,39 @@
+{
+  "name": "Bobbatlu",
+  "category": "Dessert",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "1 cup chana dal",
+      "measure": ""
+    },
+    {
+      "name": "1 cup jaggery",
+      "measure": ""
+    },
+    {
+      "name": "1 cup maida",
+      "measure": ""
+    },
+    {
+      "name": "Pinch of cardamom powder",
+      "measure": ""
+    },
+    {
+      "name": "Ghee",
+      "measure": ""
+    },
+    {
+      "name": "Salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Cook the chana dal until just soft, drain fully and grind with jaggery and cardamom into a smooth purnam.",
+    "Knead maida with a pinch of salt, water and a spoon of ghee into a soft, elastic dough and rest for an hour.",
+    "Take a ball of dough, flatten it, and stuff a bigger ball of purnam inside and seal.",
+    "Roll it out gently into a thick circle on a greased sheet.",
+    "Roast on a tawa with ghee until golden spots appear on both sides. Serve warm."
+  ],
+  "tags": "festival,ugadi,sankranti,sweet"
+}

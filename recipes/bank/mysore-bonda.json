@@ -1,0 +1,51 @@
+{
+  "name": "Mysore Bonda",
+  "category": "Snack",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "1 cup maida",
+      "measure": ""
+    },
+    {
+      "name": "half cup curd",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp cumin",
+      "measure": ""
+    },
+    {
+      "name": "1 inch ginger, chopped",
+      "measure": ""
+    },
+    {
+      "name": "2 green chillies",
+      "measure": ""
+    },
+    {
+      "name": "Few curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "Pinch of baking soda",
+      "measure": ""
+    },
+    {
+      "name": "Oil for frying",
+      "measure": ""
+    },
+    {
+      "name": "Salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Mix maida, curd, salt and soda into a thick batter and rest for two hours.",
+    "Add cumin, ginger, chillies and curry leaves to the batter.",
+    "Heat oil on medium flame.",
+    "Wet your hand, take a ball of batter and drop gently into the oil.",
+    "Fry until puffed and golden. Serve with coconut chutney."
+  ],
+  "tags": "snack,street"
+}

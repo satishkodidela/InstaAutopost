@@ -1,0 +1,67 @@
+{
+  "name": "Chintapandu Rasam",
+  "category": "Soup",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "Small ball of tamarind",
+      "measure": ""
+    },
+    {
+      "name": "1 tomato",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp rasam powder",
+      "measure": ""
+    },
+    {
+      "name": "half tsp black pepper",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp cumin",
+      "measure": ""
+    },
+    {
+      "name": "4 garlic cloves",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp mustard seeds",
+      "measure": ""
+    },
+    {
+      "name": "2 dry red chillies",
+      "measure": ""
+    },
+    {
+      "name": "Curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "Coriander leaves",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp ghee",
+      "measure": ""
+    },
+    {
+      "name": "Turmeric",
+      "measure": ""
+    },
+    {
+      "name": "Salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Soak tamarind and extract thin juice; crush the tomato into it.",
+    "Add rasam powder, turmeric, salt and crushed garlic, pepper and cumin.",
+    "Simmer gently until frothy on top — do not boil hard.",
+    "Make a ghee tadka of mustard, red chillies and curry leaves and pour over.",
+    "Garnish with coriander; drink hot or mix with rice."
+  ],
+  "tags": "comfort,soup"
+}

@@ -1,0 +1,35 @@
+{
+  "name": "Sakinalu",
+  "category": "Snack",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "2 cups rice flour",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp sesame seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp ajwain (vamu)",
+      "measure": ""
+    },
+    {
+      "name": "Oil for deep frying",
+      "measure": ""
+    },
+    {
+      "name": "Salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Mix rice flour, sesame seeds, ajwain and salt with water into a smooth thick batter.",
+    "Heat oil in a wide kadai.",
+    "With your fingers, swirl the batter into the oil in circular spiral motions.",
+    "Fry until crisp and light golden on both sides.",
+    "Drain and store airtight — the classic Telangana Sankranti snack."
+  ],
+  "tags": "telangana,festival,sankranti,snack"
+}

@@ -1,0 +1,55 @@
+{
+  "name": "Kodi Vepudu",
+  "category": "Curry",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "500g chicken",
+      "measure": ""
+    },
+    {
+      "name": "2 onions, sliced",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp ginger garlic paste",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp red chilli powder",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp garam masala",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp black pepper",
+      "measure": ""
+    },
+    {
+      "name": "Curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "4 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "Turmeric",
+      "measure": ""
+    },
+    {
+      "name": "Salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Marinate the chicken with turmeric, salt, chilli powder and ginger garlic paste for 30 minutes.",
+    "Heat oil and cook the chicken covered on medium heat in its own juices.",
+    "Once the water evaporates, add sliced onions and fry on high heat.",
+    "Keep frying until the chicken turns dark, dry and crispy at the edges.",
+    "Finish with garam masala, black pepper and a handful of curry leaves."
+  ],
+  "tags": "spicy,nonveg"
+}

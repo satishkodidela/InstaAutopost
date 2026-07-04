@@ -1,0 +1,55 @@
+{
+  "name": "Upma",
+  "category": "Breakfast",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "1 cup semolina (rava)",
+      "measure": ""
+    },
+    {
+      "name": "1 onion",
+      "measure": ""
+    },
+    {
+      "name": "2 green chillies",
+      "measure": ""
+    },
+    {
+      "name": "1 inch ginger",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp mustard seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp chana dal",
+      "measure": ""
+    },
+    {
+      "name": "Few cashews",
+      "measure": ""
+    },
+    {
+      "name": "Curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "3 tbsp ghee",
+      "measure": ""
+    },
+    {
+      "name": "Salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Dry roast the rava until fragrant and set aside.",
+    "Heat ghee, crackle mustard seeds, then fry chana dal, cashews, onion, chillies, ginger and curry leaves.",
+    "Add two and a half cups of water with salt and bring to a rolling boil.",
+    "Lower the flame and pour the rava in slowly, stirring continuously.",
+    "Cover and steam on low heat for three minutes; fluff and serve hot."
+  ],
+  "tags": "breakfast,quick"
+}

@@ -1,0 +1,55 @@
+{
+  "name": "Nimmakaya Pulihora",
+  "category": "Rice",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "3 cups cooked rice",
+      "measure": ""
+    },
+    {
+      "name": "3 lemons",
+      "measure": ""
+    },
+    {
+      "name": "3 green chillies",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp mustard seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp chana dal",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp peanuts",
+      "measure": ""
+    },
+    {
+      "name": "Curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "Pinch of turmeric",
+      "measure": ""
+    },
+    {
+      "name": "3 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "Salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Heat oil and fry mustard seeds, chana dal, peanuts, green chillies and curry leaves until golden.",
+    "Add turmeric and switch off the heat.",
+    "Squeeze in the lemon juice and add salt.",
+    "Pour this over the cooked rice and mix gently.",
+    "Rest for ten minutes and serve."
+  ],
+  "tags": "rice,quick,festival"
+}

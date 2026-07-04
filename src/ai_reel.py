@@ -1,14 +1,18 @@
-"""Full-AI recipe reel: prompt-structured cut shots via Seedance (Kie.ai),
-stitched into a 1080x1920 Reel with voiceover and music.
+"""Full-AI recipe reel via Seedance multi-shot generations (Kie.ai).
 
-Shot structure (standard recipe-reel arc, ~44s total at 5s cuts):
-  1. Hook       — finished dish, steam, dramatic close-up (+ text hook)
-  2. Ingredients— everything laid out on the counter
-  3..N-1        — cooking-action cuts derived from the recipe steps
-  N. Reveal     — final plating / garnish (+ follow CTA overlay)
-
-Cost guard: checks the Kie.ai credit balance up front and shrinks the
-shot list to fit; raises if even a minimal reel is unaffordable.
+Design (per researched best practices, see FEEDBACK.md and plan):
+- ~24s total from TWO 12s generations, each holding 3 timestamped beats
+  ("[0s] ... [4s] Cut to: ...") — cuts inside one generation are natively
+  consistent, so the dish looks the same across shots.
+- Every generation anchored to the real dish photo via @image1
+  (reference_image_urls) + an identical style block.
+- Food-motion rules: camera locked or slow push-in only, food provides the
+  motion, backlit steam, hands enter from frame edge, no "fast".
+- Seamless loop: the last beat mirrors the hook framing (rewatches).
+- No end-CTA overlay (kills completion); hook + ingredient overlays only,
+  inside Instagram's safe zones.
+- generate_audio=true: the clips' own sizzle/ASMR bed sits under the
+  Telugu voiceover, with optional music at a whisper.
 """
 
 import os
@@ -16,32 +20,48 @@ import re
 import shutil
 import subprocess
 import tempfile
-import time
 from pathlib import Path
 
-import requests
 from PIL import Image, ImageDraw
 
 from card import FONT_CANDIDATES_BOLD, _font, _wrap
+from kie_client import create_task, download, get_credits, poll_task
 
-KIE_BASE = "https://api.kie.ai/api/v1"
-# All knobs overridable via env (empty values fall through to defaults)
 KIE_MODEL = os.environ.get("KIE_SEEDANCE_MODEL") or "bytedance/seedance-2-mini"
 RESOLUTION = os.environ.get("KIE_RESOLUTION") or "480p"
-TARGET_SECONDS = int(os.environ.get("REEL_SECONDS") or "44")
-SHOT_SECONDS = int(os.environ.get("SHOT_SECONDS") or "5")
+TARGET_SECONDS = int(os.environ.get("REEL_SECONDS") or "24")
+GEN_SECONDS = 12  # one generation = 3 beats x 4s
+BEATS_PER_GEN = 3
+BEAT_SECONDS = GEN_SECONDS // BEATS_PER_GEN
 CREDITS_PER_SECOND = 9.5  # measured for seedance-2-mini @480p
-MIN_SHOTS = 5
 
 REEL_W, REEL_H = 1080, 1920
 FPS = 30
 ACCENT = (232, 93, 38)
+# Instagram UI safe zones: keep text >=210px from top, >=380px from bottom
+SAFE_TOP = 210
+SAFE_BOTTOM = 380
 
-STYLE = (
-    "vertical 9:16 food reel, cinematic, warm natural kitchen light, "
-    "shallow depth of field, appetizing, high detail, smooth camera motion. "
-    "IMPORTANT: the dish must look exactly like the reference image — same "
-    "plating, same colors, same kitchen setting throughout"
+STYLE_BLOCK = (
+    "Warm rustic South Indian kitchen, dark wood counter, brass and steel "
+    "utensils, golden 45-degree side lighting, shallow depth of field, "
+    "photorealistic vertical 9:16 food film."
+)
+NEGATIVE = "Avoid jitter, warped hands, artificial speed changes, fast motion."
+
+# Proven appetite-hook beats, chosen by keyword match against recipe steps
+HOOK_BEATS = [
+    (("tadka", "temper", "mustard seeds", "curry leaves"),
+     "tadka pour — mustard seeds and curry leaves crackling in hot oil poured over the dish, backlit steam"),
+    (("fry", "sizzl", "roast", "saute", "sauté"),
+     "close-up sizzle — the dish frying gently, oil sheen glistening, tiny bubbles"),
+    (("pour", "sauce", "gravy", "curry"),
+     "sauce cascade — thick glossy gravy ladled slowly over the dish"),
+    (("cut", "slice", "chop"),
+     "knife-cut reveal — a clean slice through the dish showing the texture inside"),
+]
+DEFAULT_HOOK_BEAT = (
+    "garnish drop — fresh coriander sprinkled from above in slow motion, backlit steam rising"
 )
 
 
@@ -54,159 +74,115 @@ def _ffmpeg() -> str:
     return imageio_ffmpeg.get_ffmpeg_exe()
 
 
-def _headers(key: str) -> dict:
-    return {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+DANGLING = {"for", "with", "the", "a", "an", "and", "to", "of", "in", "on", "at", "or", "until", "till", "then"}
 
 
-def get_credits(key: str) -> float:
-    resp = requests.get(f"{KIE_BASE}/chat/credit", headers=_headers(key), timeout=30)
-    body = resp.json()
-    if body.get("code") != 200 or body.get("data") is None:
-        raise RuntimeError(f"Kie.ai credit check failed: {body}")
-    return float(body["data"])
-
-
-def _action_fragment(step: str, max_words: int = 14) -> str:
-    frag = " ".join(step.split()[:max_words]).rstrip(".,;: ")
+def _action_fragment(step: str, max_words: int = 12) -> str:
+    words = step.split()[:max_words]
+    while words and words[-1].lower().rstrip(".,;:") in DANGLING:
+        words.pop()
+    frag = " ".join(words).rstrip(".,;: ")
     return frag[0].lower() + frag[1:] if frag else ""
 
 
-def build_shot_list(recipe: dict, n_shots: int) -> list[str]:
-    """Hook + ingredients + step-action cuts + final reveal."""
+def _pick_hook_beat(steps: list[str]) -> str:
+    text = " ".join(steps).lower()
+    for keywords, beat in HOOK_BEATS:
+        if any(k in text for k in keywords):
+            return beat
+    return DEFAULT_HOOK_BEAT
+
+
+def build_generation_prompts(recipe: dict, n_gens: int) -> list[str]:
+    """n_gens multi-shot prompts; first opens with the hook, last closes the loop."""
     name = recipe["name"]
-    area = f"{recipe['area']} " if recipe["area"] else ""
     ing_list = ", ".join(i["name"] for i in recipe["ingredients"][:6])
+    steps = recipe["steps"]
+
+    # Action beats from evenly-sampled recipe steps (used in the middle)
+    n_action = max(1, n_gens * BEATS_PER_GEN - 5)
+    stride = max(1, len(steps) // n_action)
+    actions = [
+        f"hands entering from frame edge, {_action_fragment(steps[min(i * stride, len(steps) - 1)])}, one precise action"
+        for i in range(n_action)
+    ]
 
     hook = (
-        f"Extreme close-up of freshly made {name}, {area}dish, steam rising, "
-        f"slow camera push-in, mouth-watering, {STYLE}"
+        f"Extreme close-up of the finished {name} exactly as @image1: backlit "
+        f"steam rising, a spoon lifting one portion, glossy texture. Camera: slow push-in."
     )
     ingredients = (
-        f"Overhead shot of fresh ingredients for {name} laid out on a rustic "
-        f"wooden counter: {ing_list}, camera slowly gliding across, {STYLE}"
+        f"Overhead shot of fresh ingredients for {name} on the dark wood "
+        f"counter: {ing_list}. Camera: fixed."
     )
-    reveal = (
-        f"Final plating of {name}, garnish falling in slow motion, beautiful "
-        f"presentation, slow rotating shot, {STYLE}"
+    sizzle = f"{_pick_hook_beat(steps)}, making {name}. Camera: fixed."
+    loop_close = (
+        f"The finished {name} exactly as @image1, same framing as the opening "
+        f"shot, steam rising, garnished. Camera: slow push-in."
     )
 
-    n_action = max(1, n_shots - 3)
-    steps = recipe["steps"]
-    if len(steps) <= n_action:
-        picks = steps
-    else:
-        stride = len(steps) / n_action
-        picks = [steps[int(i * stride)] for i in range(n_action)]
-    actions = [
-        (
-            f"Close-up of hands cooking: {_action_fragment(s)}, making {name}, "
-            f"fast-paced cooking action, {STYLE}"
+    beats = [hook, ingredients, *[f"{a}. Camera: fixed." for a in actions], sizzle, loop_close]
+    # Trim/pad to exactly n_gens * BEATS_PER_GEN, keeping first two and last two
+    want = n_gens * BEATS_PER_GEN
+    while len(beats) > want:
+        beats.pop(2)
+    while len(beats) < want:
+        beats.insert(2, f"macro texture close-up of {name}, steam curling. Camera: fixed.")
+
+    prompts = []
+    for g in range(n_gens):
+        chunk = beats[g * BEATS_PER_GEN : (g + 1) * BEATS_PER_GEN]
+        timed = " ".join(
+            f"[{i * BEAT_SECONDS}s]{' Cut to:' if i else ''} {beat}"
+            for i, beat in enumerate(chunk)
         )
-        for s in picks
-    ]
-
-    # Recipes with few steps: pad with beauty shots to hit the target length
-    extras = [
-        f"Macro texture shot of {name}, fork lifting a bite, steam curling up, {STYLE}",
-        f"Hands sprinkling fresh herbs and seasoning over {name} in a pan, {STYLE}",
-        f"{name} served on a table spread with drinks and sides, cozy dinner scene, {STYLE}",
-        f"Side angle of {name} being lifted from the pan, dripping and delicious, {STYLE}",
-    ]
-    shots = [hook, ingredients, *actions]
-    for extra in extras:
-        if len(shots) >= n_shots - 1:
-            break
-        shots.append(extra)
-    return [*shots, reveal]
-
-
-def _create_task(prompt: str, key: str, ref_image: str | None = None) -> str:
-    payload_input = {
-        "prompt": prompt,
-        "duration": SHOT_SECONDS,
-        "resolution": RESOLUTION,
-        "aspect_ratio": "9:16",
-        "generate_audio": False,
-    }
-    if ref_image:
-        # Anchor every shot to the real dish photo so hook, cooking and
-        # reveal all show the SAME dish (expectation == reality)
-        payload_input["reference_image_urls"] = [ref_image]
-    resp = requests.post(
-        f"{KIE_BASE}/jobs/createTask",
-        headers=_headers(key),
-        json={"model": KIE_MODEL, "input": payload_input},
-        timeout=60,
-    )
-    body = resp.json()
-    task_id = (body.get("data") or {}).get("taskId") or body.get("taskId")
-    if not resp.ok or not task_id:
-        raise RuntimeError(f"Kie.ai createTask failed: {resp.status_code} {body}")
-    return task_id
-
-
-def _poll_task(task_id: str, key: str, timeout_s: int = 1200) -> str:
-    import json as _json
-
-    deadline = time.time() + timeout_s
-    while time.time() < deadline:
-        resp = requests.get(
-            f"{KIE_BASE}/jobs/recordInfo",
-            headers=_headers(key),
-            params={"taskId": task_id},
-            timeout=60,
+        prompts.append(
+            f"Use @image1 for the dish's exact appearance and plating. "
+            f"{STYLE_BLOCK} {timed} {NEGATIVE}"
         )
-        body = resp.json()
-        data = body.get("data") or {}
-        state = (data.get("state") or "").lower()
-        if state in ("success", "completed"):
-            blob = _json.dumps(data)
-            urls = re.findall(r"https://[^\"\\\s]+?\.mp4[^\"\\\s]*", blob)
-            if urls:
-                return urls[0]
-            raise RuntimeError(f"Kie.ai task succeeded but no video URL found: {body}")
-        if state in ("fail", "failed", "error"):
-            raise RuntimeError(f"Kie.ai task failed: {body}")
-        time.sleep(10)
-    raise RuntimeError(f"Kie.ai task {task_id} timed out after {timeout_s}s")
+    return prompts
 
 
-def generate_shots(
-    prompts: list[str], key: str, out_dir: Path, ref_image: str | None = None
-) -> list[Path]:
-    """Create all tasks up front (they render in parallel), then collect."""
-    task_ids = [_create_task(p, key, ref_image) for p in prompts]
-    print(f"  {len(task_ids)} Seedance tasks created, waiting for renders...", flush=True)
+def generate_clips(prompts: list[str], ref_image: str | None, key: str, out_dir: Path) -> list[Path]:
+    task_ids = []
+    for p in prompts:
+        task_input = {
+            "prompt": p,
+            "duration": GEN_SECONDS,
+            "resolution": RESOLUTION,
+            "aspect_ratio": "9:16",
+            "generate_audio": True,
+        }
+        if ref_image:
+            task_input["reference_image_urls"] = [ref_image]
+        task_ids.append(create_task(KIE_MODEL, task_input, key))
+    print(f"  {len(task_ids)} Seedance generations created, waiting...", flush=True)
     paths = []
     for i, task_id in enumerate(task_ids):
-        url = _poll_task(task_id, key)
-        path = out_dir / f"shot{i:02d}.mp4"
-        with requests.get(url, stream=True, timeout=300) as resp:
-            resp.raise_for_status()
-            with path.open("wb") as fh:
-                for chunk in resp.iter_content(chunk_size=1 << 20):
-                    fh.write(chunk)
-        print(f"  shot {i + 1}/{len(task_ids)} done", flush=True)
+        url = poll_task(task_id, key, exts="mp4")
+        path = out_dir / f"gen{i:02d}.mp4"
+        download(url, path)
+        print(f"  generation {i + 1}/{len(task_ids)} done", flush=True)
         paths.append(path)
     return paths
 
 
 def _overlay_png(lines_top: list[str], lines_bottom: list[str], out_path: Path) -> None:
-    """Transparent 1080x1920 overlay with caption text bars."""
+    """Transparent overlay; text kept inside IG safe zones."""
     img = Image.new("RGBA", (REEL_W, REEL_H), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     top_font = _font(FONT_CANDIDATES_BOLD, 64)
-    bottom_font = _font(FONT_CANDIDATES_BOLD, 44)
+    bottom_font = _font(FONT_CANDIDATES_BOLD, 46)
 
     scratch = ImageDraw.Draw(Image.new("RGB", (1, 1)))
     top_wrapped = [
-        ln for text in lines_top for ln in _wrap(scratch, text, top_font, REEL_W - 160)
+        ln for t in lines_top for ln in _wrap(scratch, t, top_font, REEL_W - 200)
     ]
     bottom_wrapped = [
-        ln for text in lines_bottom for ln in _wrap(scratch, text, bottom_font, REEL_W - 200)
+        ln for t in lines_bottom for ln in _wrap(scratch, t, bottom_font, REEL_W - 240)
     ]
 
-    y = 210
+    y = SAFE_TOP
     for line in top_wrapped:
         w = draw.textlength(line, font=top_font)
         x = (REEL_W - w) / 2
@@ -216,20 +192,25 @@ def _overlay_png(lines_top: list[str], lines_bottom: list[str], out_path: Path) 
         draw.text((x, y), line, font=top_font, fill=(255, 255, 255, 255))
         y += 88
 
-    y = REEL_H - 320 - (len(bottom_wrapped) - 1) * 66
+    y = REEL_H - SAFE_BOTTOM - len(bottom_wrapped) * 68
     for line in bottom_wrapped:
         w = draw.textlength(line, font=bottom_font)
         x = (REEL_W - w) / 2
         draw.rounded_rectangle(
-            [x - 20, y - 8, x + w + 20, y + 52], radius=14, fill=ACCENT + (230,)
+            [x - 20, y - 8, x + w + 20, y + 54], radius=14, fill=ACCENT + (230,)
         )
         draw.text((x, y), line, font=bottom_font, fill=(255, 255, 255, 255))
-        y += 66
+        y += 68
     img.save(out_path, "PNG")
 
 
+def _has_audio(ff: str, clip: Path) -> bool:
+    probe = subprocess.run([ff, "-i", str(clip)], capture_output=True, text=True)
+    return " Audio:" in probe.stderr
+
+
 def assemble_reel(
-    shots: list[Path],
+    clips: list[Path],
     recipe: dict,
     handle: str,
     out_path: Path,
@@ -238,88 +219,95 @@ def assemble_reel(
 ) -> None:
     ff = _ffmpeg()
     n_ing = len(recipe["ingredients"])
-    # Back the "N ingredients" claim on screen: list the key ones on shot 2
+    hook_text = recipe.get("hook") or f"Only {n_ing} ingredients!"
     key_ing = [i["name"] for i in recipe["ingredients"][:6]]
     if n_ing > len(key_ing):
         key_ing.append(f"+ {n_ing - len(key_ing)} more")
-    overlays = {
-        0: ([f"Only {n_ing} ingredients!"], [recipe["name"]]),
-        1: (["What you need:"], key_ing),
-        len(shots) - 1: (["Save this for later!"], [f"Follow @{handle}"]),
-    }
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_dir = Path(tmp)
+        # Timed overlays for generation 1: hook (beat 1) + ingredients (beat 2).
+        # Dish name stays on screen through gen 1 (SEO: IG reads burned-in text).
+        ov_hook = tmp_dir / "ov_hook.png"
+        _overlay_png([hook_text], [recipe["name"]], ov_hook)
+        ov_ing = tmp_dir / "ov_ing.png"
+        _overlay_png(["What you need:"], key_ing, ov_ing)
+
         norm = []
-        for i, shot in enumerate(shots):
+        for i, clip in enumerate(clips):
             out = tmp_dir / f"norm{i:02d}.mp4"
-            cmd = [ff, "-y", "-i", str(shot)]
+            has_audio = _has_audio(ff, clip)
+            cmd = [ff, "-y", "-i", str(clip)]
             base = (
                 f"[0:v]scale={REEL_W}:{REEL_H}:force_original_aspect_ratio=increase,"
                 f"crop={REEL_W}:{REEL_H},fps={FPS}"
             )
-            if i in overlays:
-                ov = tmp_dir / f"ov{i}.png"
-                _overlay_png(*overlays[i], ov)
-                cmd += ["-i", str(ov)]
-                vf = f"{base}[v0];[v0][1:v]overlay=0:0,format=yuv420p"
+            if i == 0:
+                cmd += ["-i", str(ov_hook), "-i", str(ov_ing)]
+                vf = (
+                    f"{base}[v0];"
+                    f"[v0][1:v]overlay=0:0:enable='lt(t,{BEAT_SECONDS})'[v1];"
+                    f"[v1][2:v]overlay=0:0:enable='between(t,{BEAT_SECONDS},{2 * BEAT_SECONDS})',"
+                    f"format=yuv420p[vout]"
+                )
             else:
-                vf = f"{base},format=yuv420p"
+                vf = f"{base},format=yuv420p[vout]"
+            if not has_audio:
+                cmd += ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo"]
+                audio_map = f"{3 if i == 0 else 1}:a"
+            else:
+                audio_map = "0:a"
             cmd += [
-                "-filter_complex", vf, "-an",
-                "-c:v", "libx264", "-preset", "medium", "-crf", "20", str(out),
+                "-filter_complex", vf,
+                "-map", "[vout]", "-map", audio_map,
+                "-c:v", "libx264", "-preset", "medium", "-crf", "20",
+                "-c:a", "aac", "-ar", "44100", "-ac", "2",
+                "-t", str(GEN_SECONDS),
+                str(out),
             ]
             subprocess.run(cmd, check=True, capture_output=True, text=True)
             norm.append(out)
 
         concat_file = tmp_dir / "concat.txt"
         concat_file.write_text("\n".join(f"file '{p}'" for p in norm))
-        silent = tmp_dir / "video.mp4"
+        base_av = tmp_dir / "base.mp4"
         subprocess.run(
             [ff, "-y", "-f", "concat", "-safe", "0", "-i", str(concat_file),
-             "-c", "copy", str(silent)],
+             "-c", "copy", str(base_av)],
             check=True, capture_output=True, text=True,
         )
 
-        probe = subprocess.run([ff, "-i", str(silent)], capture_output=True, text=True)
+        probe = subprocess.run([ff, "-i", str(base_av)], capture_output=True, text=True)
         m = re.search(r"Duration: (\d+):(\d+):([\d.]+)", probe.stderr)
         video_len = float(m.group(1)) * 3600 + float(m.group(2)) * 60 + float(m.group(3))
 
-        # Voiceover over quiet music, faded out, clamped with explicit -t
-        # (the apad'd voiceover stream is infinite; -shortest would hang)
-        cmd = [ff, "-y", "-i", str(silent)]
-        filters, mix_inputs = [], []
+        # Mix: sizzle bed (from clips) + voiceover + optional whisper of music.
+        # Explicit -t, never -shortest (apad'd voiceover is infinite).
+        cmd = [ff, "-y", "-i", str(base_av)]
+        filters = ["[0:a]volume=0.5[siz]"]
+        mix = ["[siz]"]
         idx = 1
         if voiceover is not None:
             cmd += ["-i", str(voiceover)]
-            filters.append(f"[{idx}:a]adelay=600|600,apad[vo]")
-            mix_inputs.append("[vo]")
+            filters.append(f"[{idx}:a]adelay=400|400,apad[vo]")
+            mix.append("[vo]")
             idx += 1
         if music is not None:
             cmd += ["-stream_loop", "-1", "-i", str(music)]
-            vol = 0.12 if voiceover is not None else 0.6
-            filters.append(f"[{idx}:a]volume={vol}[mu]")
-            mix_inputs.append("[mu]")
+            filters.append(f"[{idx}:a]volume=0.06[mu]")
+            mix.append("[mu]")
             idx += 1
-
-        if mix_inputs:
-            if len(mix_inputs) == 1:
-                filters.append(f"{mix_inputs[0]}anull[amixed]")
-            else:
-                filters.append(
-                    f"{''.join(mix_inputs)}amix=inputs={len(mix_inputs)}:"
-                    f"duration=first:dropout_transition=0[amixed]"
-                )
-            filters.append(f"[amixed]afade=t=out:st={max(video_len - 1.5, 0)}:d=1.5[aout]")
-            cmd += [
-                "-filter_complex", ";".join(filters),
-                "-map", "0:v", "-map", "[aout]",
-                "-c:a", "aac", "-b:a", "192k",
-            ]
-        else:
-            cmd += ["-an"]
-        cmd += ["-t", f"{video_len:.2f}", "-c:v", "copy",
-                "-movflags", "+faststart", str(out_path)]
+        filters.append(
+            f"{''.join(mix)}amix=inputs={len(mix)}:duration=first:"
+            f"dropout_transition=0,afade=t=out:st={max(video_len - 1.2, 0)}:d=1.2[aout]"
+        )
+        cmd += [
+            "-filter_complex", ";".join(filters),
+            "-map", "0:v", "-map", "[aout]",
+            "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
+            "-t", f"{video_len:.2f}",
+            "-movflags", "+faststart", str(out_path),
+        ]
         subprocess.run(cmd, check=True, capture_output=True, text=True)
 
 
@@ -332,21 +320,22 @@ def make_ai_reel(
 ) -> None:
     key = os.environ["KIE_API_KEY"]
 
-    n_shots = max(MIN_SHOTS, round(TARGET_SECONDS / SHOT_SECONDS))
+    n_gens = max(1, round(TARGET_SECONDS / GEN_SECONDS))
+    per_gen = GEN_SECONDS * CREDITS_PER_SECOND
     balance = get_credits(key)
-    per_shot = SHOT_SECONDS * CREDITS_PER_SECOND
-    affordable = int(balance // per_shot)
-    if affordable < MIN_SHOTS:
+    affordable = int(balance // per_gen)
+    if affordable < 1:
         raise RuntimeError(
-            f"Kie.ai balance too low for a reel: {balance:.0f} credits "
-            f"(~{per_shot:.0f}/shot, need >= {MIN_SHOTS} shots). Top up."
+            f"Kie.ai balance too low: {balance:.0f} credits (~{per_gen:.0f}/generation). Top up."
         )
-    if affordable < n_shots:
-        print(f"  Credits low ({balance:.0f}): trimming reel to {affordable} shots", flush=True)
-        n_shots = affordable
+    if affordable < n_gens:
+        print(f"  Credits low ({balance:.0f}): {affordable} generation(s) only", flush=True)
+        n_gens = affordable
+    if balance - n_gens * per_gen < 2 * n_gens * per_gen:
+        print(f"  WARNING: Kie credits low ({balance:.0f}) — under ~2 days of reels left. Top up soon.", flush=True)
 
-    prompts = build_shot_list(recipe, n_shots)
+    prompts = build_generation_prompts(recipe, n_gens)
     ref_image = recipe.get("thumb") or None
     with tempfile.TemporaryDirectory() as tmp:
-        shots = generate_shots(prompts, key, Path(tmp), ref_image)
-        assemble_reel(shots, recipe, handle, out_path, voiceover, music)
+        clips = generate_clips(prompts, ref_image, key, Path(tmp))
+        assemble_reel(clips, recipe, handle, out_path, voiceover, music)

@@ -1,0 +1,43 @@
+{
+  "name": "Pesarattu",
+  "category": "Breakfast",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "1 cup whole green gram (pesalu), soaked overnight",
+      "measure": ""
+    },
+    {
+      "name": "2 green chillies",
+      "measure": ""
+    },
+    {
+      "name": "1 inch ginger",
+      "measure": ""
+    },
+    {
+      "name": "1 small onion, chopped fine",
+      "measure": ""
+    },
+    {
+      "name": "Few cumin seeds",
+      "measure": ""
+    },
+    {
+      "name": "Salt",
+      "measure": ""
+    },
+    {
+      "name": "Oil for roasting",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Grind the soaked green gram with green chillies, ginger, cumin and salt into a smooth batter with a little water.",
+    "Heat a tawa on medium heat and spread a ladle of batter thin like a dosa.",
+    "Sprinkle chopped onions and cumin on top and drizzle oil around the edges.",
+    "Roast until the bottom turns golden and crisp, then fold and serve hot.",
+    "Serve with ginger chutney (allam pachadi) for the classic combination."
+  ],
+  "tags": "breakfast,healthy"
+}

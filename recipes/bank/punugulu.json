@@ -1,0 +1,43 @@
+{
+  "name": "Punugulu",
+  "category": "Snack",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "2 cups leftover idli or dosa batter",
+      "measure": ""
+    },
+    {
+      "name": "1 onion, chopped fine",
+      "measure": ""
+    },
+    {
+      "name": "2 green chillies",
+      "measure": ""
+    },
+    {
+      "name": "Few curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp rice flour",
+      "measure": ""
+    },
+    {
+      "name": "Oil for deep frying",
+      "measure": ""
+    },
+    {
+      "name": "Salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Mix chopped onion, green chillies, curry leaves, rice flour and salt into the batter to make it thick.",
+    "Heat oil in a kadai on medium flame.",
+    "Drop small spoonfuls of batter into the hot oil.",
+    "Fry until golden brown and crisp on all sides.",
+    "Drain and serve hot with ginger chutney."
+  ],
+  "tags": "snack,street"
+}

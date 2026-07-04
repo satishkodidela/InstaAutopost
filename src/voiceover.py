@@ -19,13 +19,15 @@ SARVAM_BASE = "https://api.sarvam.ai"
 SARVAM_SPEAKER = os.environ.get("SARVAM_SPEAKER") or "shreya"
 EDGE_VOICE_EN = "en-IN-NeerjaNeural"
 
-HOOKS = [
-    "Guys, you have to try this one!",
-    "Okay so, dinner problem solved for today!",
-    "Wait till you see how easy this is!",
-    "This one is a total crowd pleaser!",
-    "Trust me, you will make this again and again!",
-]
+def telugu_dish_name(name: str) -> str | None:
+    """Telugu-script dish name for bilingual SEO captions; None if unavailable."""
+    key = os.environ.get("SARVAM_API_KEY")
+    if not key:
+        return None
+    try:
+        return translate_to_telugu(name, key).strip()
+    except Exception:
+        return None
 
 
 def _flame_word(celsius: int) -> str:
@@ -79,36 +81,28 @@ def _step_fragment(step: str, max_words: int = 10) -> str:
 
 
 def build_script(recipe: dict, handle: str) -> str:
-    """Casual spoken script (~120 words, roughly 40-45 seconds).
+    """Payoff-first spoken script (~65-75 words ≈ 25s at conversational pace).
 
     Written in simple conversational English; Sarvam's code-mixed mode
     turns it into natural everyday Telugu with English words kept in.
     """
-    hook = HOOKS[int(recipe["id"]) % len(HOOKS)]
     name = recipe["name"]
     n_ing = len(recipe["ingredients"])
-    key_ing = ", ".join(i["name"] for i in recipe["ingredients"][:3])
     steps = recipe["steps"]
     picks = [steps[0]]
     if len(steps) > 2:
         picks.append(steps[len(steps) // 2])
-    if len(steps) > 1:
-        picks.append(steps[-1])
-    frags = [_step_fragment(s) for s in picks]
+    picks.append(steps[-1])
+    frags = [_step_fragment(s, max_words=8) for s in picks]
 
     lines = [
-        f"{hook} Today we are making {name}.",
-        f"You just need {n_ing} simple ingredients — the main ones are {key_ing}.",
-        f"First, {frags[0]}.",
+        f"This {name} needs just {n_ing} ingredients, that's it!",
+        f"Quick version: first, {frags[0]}.",
     ]
     if len(frags) == 3:
         lines.append(f"Then, {frags[1]}.")
-    lines.append(f"And finally, {frags[-1]}. That's it, done!")
-    lines += [
-        "It looks so good, right? The full recipe is there in the caption.",
-        "Try it today and tell me how it turned out!",
-        "And follow for one tasty new recipe every single day!",
-    ]
+    lines.append(f"And finally, {frags[-1]}. Done!")
+    lines.append("Full recipe is in the caption. Send this to your foodie friend!")
     return " ".join(lines)
 
 

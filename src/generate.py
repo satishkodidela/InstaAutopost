@@ -23,8 +23,9 @@ from zoneinfo import ZoneInfo
 
 from ai_reel import make_ai_reel
 from card import make_cover, make_follow_card, make_ingredients_card, make_steps_cards
+from hero_image import generate_hero
 from recipe import download_photo, fetch_recipe
-from voiceover import make_voiceover
+from voiceover import make_voiceover, telugu_dish_name
 
 MAX_STEP_CARDS = 3
 # Overridable via env / repo variables (empty values fall through)
@@ -32,9 +33,18 @@ HANDLE = os.environ.get("IG_HANDLE") or "roadside_mobile"
 REEL_PROBABILITY = float(os.environ.get("REEL_PROBABILITY") or "0.5")
 
 HASHTAGS = (
-    "#RecipeOfTheDay #Foodie #HomeCooking #EasyRecipes #FoodLovers "
-    "#Cooking #InstaFood #FoodStagram #DailyRecipe"
+    "#TeluguRecipes #TeluguVantalu #SouthIndianFood #AndhraRecipes "
+    "#TeluguFood #RecipeOfTheDay #HomeCooking #EasyRecipes #DailyRecipe"
 )
+
+# Comment-bait questions rotate by recipe id (comment count is a ranking signal)
+QUESTIONS = [
+    "Mee intlo kuda ila chestara? Comment cheyandi! 👇",
+    "Amma style or this style — which one wins? Comment! 👇",
+    "Rate this recipe 1-10 in the comments! 👇",
+    "Which dish should we make tomorrow? Tell us below! 👇",
+    "Tried this before? How did it turn out? 👇",
+]
 
 
 def pick_music(root: Path) -> Path | None:
@@ -76,9 +86,73 @@ def load_history(path: Path) -> list[dict]:
     return json.loads(path.read_text()) if path.exists() else []
 
 
+def _bank_recipe_from(path: Path) -> dict:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return {
+        "id": f"bank-{path.stem}",
+        "name": data["name"],
+        "category": data.get("category", ""),
+        "area": data.get("area", "South Indian"),
+        "thumb": data.get("image_url", ""),
+        "ingredients": [
+            {"name": i["name"], "measure": i.get("measure", "")}
+            for i in data["ingredients"]
+        ],
+        "steps": data["steps"],
+        "youtube": data.get("youtube", ""),
+        "tags": data.get("tags", ""),
+    }
+
+
+def upcoming_festival(root: Path, today, window_days: int = 3) -> dict | None:
+    """Festival within the next `window_days` (data/festivals.json, MM-DD dates)."""
+    path = root / "data" / "festivals.json"
+    if not path.exists():
+        return None
+    from datetime import date, timedelta
+
+    for fest in json.loads(path.read_text(encoding="utf-8")):
+        month, day = (int(x) for x in fest["date"].split("-"))
+        for year in (today.year, today.year + 1):
+            try:
+                fd = date(year, month, day)
+            except ValueError:
+                continue
+            if 0 <= (fd - today).days <= window_days:
+                return fest
+    return None
+
+
+def pick_bank_recipe(root: Path, posted: set[str], today) -> tuple[dict | None, str | None]:
+    """South Indian bank pick: festival-tagged first, else random unposted.
+
+    Returns (recipe, festival_name_or_None).
+    """
+    bank = sorted((root / "recipes" / "bank").glob("*.json"))
+    unposted = [p for p in bank if f"bank-{p.stem}" not in posted]
+    if not unposted:
+        return None, None
+
+    fest = upcoming_festival(root, today)
+    if fest:
+        tags = set(fest.get("tags", []))
+        for path in unposted:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            recipe_tags = set((data.get("tags") or "").split(","))
+            if tags & recipe_tags:
+                return _bank_recipe_from(path), fest["name"]
+    return _bank_recipe_from(random.choice(unposted)), None
+
+
 def build_caption(recipe: dict, date_label: str, music: Path | None = None) -> str:
+    # Bilingual keyword-first title: Instagram/Google index caption keywords,
+    # and the Telugu-script name doubles the searchable surface
+    title = f"{recipe['name']} recipe"
+    te_name = telugu_dish_name(recipe["name"])
+    if te_name:
+        title = f"{recipe['name']} | {te_name} recipe"
     meta = " • ".join(filter(None, [recipe["area"], recipe["category"]]))
-    lines = [f"🍽️ Recipe of the Day — {recipe['name']}"]
+    lines = [f"🍽️ {title}"]
     if meta:
         lines.append(f"({meta})")
     lines += ["", f"📅 {date_label}", "", "🛒 Ingredients:"]
@@ -89,7 +163,9 @@ def build_caption(recipe: dict, date_label: str, music: Path | None = None) -> s
     lines += [f"{i}. {step}" for i, step in enumerate(recipe["steps"], start=1)]
     if recipe.get("youtube"):
         lines += ["", f"🎥 Video: {recipe['youtube']}"]
-    lines += ["", f"🔖 Save this recipe for later & share it with a foodie!"]
+    question = QUESTIONS[abs(hash(recipe["id"])) % len(QUESTIONS)]
+    lines += ["", question]
+    lines += ["📩 Send this to a foodie friend & 🔖 save it for later!"]
     lines += [f"Follow @{HANDLE} for a new recipe every day! 🔔"]
     credits = "Recipe data: TheMealDB"
     if music is not None:
@@ -129,17 +205,39 @@ def main() -> None:
         print(f"Last post: {last_post.get('name')} [{last_post.get('format')}] "
               f"on {last_post.get('date')}")
 
+    festival = None
     try:
+        # Source order: owner queue -> South Indian bank -> TheMealDB fallback
         recipe = pop_queued_recipe(root)
         if recipe is None:
+            recipe, festival = pick_bank_recipe(root, set(posted), now_ist.date())
+            if recipe is not None:
+                print(f"Bank recipe: {recipe['name']}"
+                      + (f" ({festival} special)" if festival else ""))
+        if recipe is None:
+            print("Bank exhausted; falling back to TheMealDB")
             recipe = fetch_recipe(
                 seen_ids=set(posted),
                 avoid_category=(last_post or {}).get("category"),
             )
+
+        # Bank recipes without a photo get an AI hero image (cover + @image1 anchor)
+        if not recipe.get("thumb"):
+            if not os.environ.get("KIE_API_KEY"):
+                raise RuntimeError(f"{recipe['name']} has no image_url and no KIE_API_KEY for hero generation")
+            print("Generating hero image...", flush=True)
+            recipe["thumb"] = generate_hero(recipe, os.environ["KIE_API_KEY"])
+
         photo = download_photo(recipe["thumb"])
     except Exception as exc:
-        print(f"Failed to fetch recipe: {exc}", file=sys.stderr)
+        print(f"Failed to prepare recipe: {exc}", file=sys.stderr)
         sys.exit(1)
+
+    # Series hooks for the reel overlay
+    if festival:
+        recipe["hook"] = f"{festival} special!"
+    elif len(recipe["ingredients"]) <= 5:
+        recipe["hook"] = f"Only {len(recipe['ingredients'])} ingredients!"
 
     # Method cards first — their count determines the page total shown
     # in the cover/ingredients page dots.

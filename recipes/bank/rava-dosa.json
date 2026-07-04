@@ -1,0 +1,55 @@
+{
+  "name": "Rava Dosa",
+  "category": "Breakfast",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "1 cup semolina (rava)",
+      "measure": ""
+    },
+    {
+      "name": "half cup rice flour",
+      "measure": ""
+    },
+    {
+      "name": "quarter cup maida",
+      "measure": ""
+    },
+    {
+      "name": "1 onion, chopped fine",
+      "measure": ""
+    },
+    {
+      "name": "2 green chillies",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp cumin",
+      "measure": ""
+    },
+    {
+      "name": "Few curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "Ginger, chopped",
+      "measure": ""
+    },
+    {
+      "name": "Salt",
+      "measure": ""
+    },
+    {
+      "name": "Oil",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Mix rava, rice flour, maida and salt with water into a very thin, watery batter and rest for 20 minutes.",
+    "Add chopped onion, chillies, ginger, cumin and curry leaves to the batter.",
+    "Heat the tawa well and pour the batter from a height in a circular motion to get a lacy dosa.",
+    "Drizzle oil around and roast until crisp and golden; do not flip.",
+    "Serve immediately with coconut chutney."
+  ],
+  "tags": "breakfast,crispy"
+}

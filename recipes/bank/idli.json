@@ -1,0 +1,31 @@
+{
+  "name": "Idli",
+  "category": "Breakfast",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "2 cups idli rice",
+      "measure": ""
+    },
+    {
+      "name": "1 cup urad dal",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp fenugreek seeds",
+      "measure": ""
+    },
+    {
+      "name": "Salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Soak rice, and dal with fenugreek, separately for six hours.",
+    "Grind the dal into a fluffy batter, then the rice, and mix both with salt.",
+    "Ferment overnight in a warm place until doubled.",
+    "Pour into greased idli plates.",
+    "Steam for 12 minutes; rest 2 minutes before unmoulding. Serve with sambar and chutney."
+  ],
+  "tags": "breakfast,classic"
+}

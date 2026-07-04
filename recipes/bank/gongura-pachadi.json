@@ -1,0 +1,43 @@
+{
+  "name": "Gongura Pachadi",
+  "category": "Pickle",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "2 bunches gongura (sorrel leaves)",
+      "measure": ""
+    },
+    {
+      "name": "6 dry red chillies",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp mustard seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp fenugreek seeds",
+      "measure": ""
+    },
+    {
+      "name": "4 garlic cloves",
+      "measure": ""
+    },
+    {
+      "name": "Salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Wash and dry the gongura leaves, then fry them in a little oil until they wilt completely.",
+    "In the same pan roast red chillies, fenugreek and mustard seeds until fragrant.",
+    "Grind the wilted leaves with the roasted spices, garlic and salt into a coarse paste.",
+    "Heat oil, add mustard seeds and garlic for tadka, and pour it over the pachadi.",
+    "Serve with hot rice and a spoon of ghee."
+  ],
+  "tags": "andhra,classic"
+}

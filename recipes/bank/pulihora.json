@@ -1,0 +1,59 @@
+{
+  "name": "Pulihora",
+  "category": "Rice",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "3 cups cooked rice",
+      "measure": ""
+    },
+    {
+      "name": "1 lemon-sized ball of tamarind",
+      "measure": ""
+    },
+    {
+      "name": "3 green chillies",
+      "measure": ""
+    },
+    {
+      "name": "2 dry red chillies",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp mustard seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp chana dal",
+      "measure": ""
+    },
+    {
+      "name": "Curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp peanuts",
+      "measure": ""
+    },
+    {
+      "name": "Pinch of turmeric",
+      "measure": ""
+    },
+    {
+      "name": "3 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "Salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Soak the tamarind in warm water and extract a thick pulp.",
+    "Heat oil, add mustard seeds, chana dal, peanuts, red and green chillies and curry leaves and fry until golden.",
+    "Add turmeric and the tamarind pulp and simmer until the raw smell goes and it thickens.",
+    "Mix this pulusu into the cooked rice gently with salt.",
+    "Rest for half an hour so the flavours soak in, then serve."
+  ],
+  "tags": "festival,sankranti,ugadi,rice"
+}

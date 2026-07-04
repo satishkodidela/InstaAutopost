@@ -42,11 +42,14 @@ jobs:
           SARVAM_SPEAKER: ${{ vars.SARVAM_SPEAKER }}
         run: python -u src/generate.py
 
+      - name: Clean up old media (keep repo lean)
+        run: python src/cleanup.py
+
       - name: Commit and push the image (Instagram needs a public URL)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add posts/ data/ recipes/
+          git add -A posts/ data/ recipes/
           git commit -m "Daily post $(TZ=Asia/Kolkata date +%F)"
           git push
 
