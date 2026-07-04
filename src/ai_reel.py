@@ -232,12 +232,15 @@ def assemble_reel(
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_dir = Path(tmp)
-        # Timed overlays for generation 1: hook (beat 1) + ingredients (beat 2).
-        # Dish name stays on screen through gen 1 (SEO: IG reads burned-in text).
+        # Timed overlays: gen 1 gets hook (beat 1) + ingredients (beat 2);
+        # the LAST gen gets a small follow bar on the final beat (owner
+        # requirement: follow CTA at the end, kept small in the safe zone).
         ov_hook = tmp_dir / "ov_hook.png"
         _overlay_png([hook_text], [recipe["name"]], ov_hook)
         ov_ing = tmp_dir / "ov_ing.png"
         _overlay_png(["What you need:"], key_ing, ov_ing)
+        ov_follow = tmp_dir / "ov_follow.png"
+        _overlay_png([], [f"Follow @{handle} for daily recipes"], ov_follow)
 
         norm = []
         for i, clip in enumerate(clips):
@@ -248,19 +251,31 @@ def assemble_reel(
                 f"[0:v]scale={REEL_W}:{REEL_H}:force_original_aspect_ratio=increase,"
                 f"crop={REEL_W}:{REEL_H},fps={FPS}"
             )
+            # (png_path, enable_expr) overlays for this clip
+            overlays = []
             if i == 0:
-                cmd += ["-i", str(ov_hook), "-i", str(ov_ing)]
-                vf = (
-                    f"{base}[v0];"
-                    f"[v0][1:v]overlay=0:0:enable='lt(t,{BEAT_SECONDS})'[v1];"
-                    f"[v1][2:v]overlay=0:0:enable='between(t,{BEAT_SECONDS},{2 * BEAT_SECONDS})',"
-                    f"format=yuv420p[vout]"
-                )
+                overlays.append((ov_hook, f"lt(t,{BEAT_SECONDS})"))
+                overlays.append((ov_ing, f"between(t,{BEAT_SECONDS},{2 * BEAT_SECONDS})"))
+            if i == len(clips) - 1:
+                overlays.append((ov_follow, f"gt(t,{GEN_SECONDS - BEAT_SECONDS})"))
+
+            if overlays:
+                for png, _ in overlays:
+                    cmd += ["-i", str(png)]
+                chain = f"{base}[v0]"
+                cur = "v0"
+                for j, (_, enable) in enumerate(overlays):
+                    nxt = f"v{j + 1}"
+                    chain += f";[{cur}][{j + 1}:v]overlay=0:0:enable='{enable}'[{nxt}]"
+                    cur = nxt
+                vf = f"{chain};[{cur}]format=yuv420p[vout]"
             else:
                 vf = f"{base},format=yuv420p[vout]"
+
+            audio_input_idx = 1 + len(overlays)
             if not has_audio:
                 cmd += ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo"]
-                audio_map = f"{3 if i == 0 else 1}:a"
+                audio_map = f"{audio_input_idx}:a"
             else:
                 audio_map = "0:a"
             cmd += [

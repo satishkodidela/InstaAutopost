@@ -95,14 +95,17 @@ def build_script(recipe: dict, handle: str) -> str:
     picks.append(steps[-1])
     frags = [_step_fragment(s, max_words=8) for s in picks]
 
+    # Sentence order mirrors the video beats: hook -> ingredients ->
+    # first step -> cooking -> serve line over the final reveal -> follow CTA
     lines = [
         f"This {name} needs just {n_ing} ingredients, that's it!",
-        f"Quick version: first, {frags[0]}.",
+        "Everything you need is right here on the screen.",
+        f"First, {frags[0]}.",
     ]
     if len(frags) == 3:
         lines.append(f"Then, {frags[1]}.")
-    lines.append(f"And finally, {frags[-1]}. Done!")
-    lines.append("Full recipe is in the caption. Send this to your foodie friend!")
+    lines.append(f"And finally, {frags[-1]}.")
+    lines.append("Full recipe is in the caption. Follow us for a new tasty recipe every single day!")
     return " ".join(lines)
 
 
