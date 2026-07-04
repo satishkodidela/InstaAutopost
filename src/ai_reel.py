@@ -20,10 +20,13 @@ from PIL import Image, ImageDraw, ImageFont
 from card import FONT_CANDIDATES_BOLD, _font, _wrap
 
 KIE_BASE = "https://api.kie.ai/api/v1"
-KIE_MODEL = os.environ.get("KIE_SEEDANCE_MODEL", "bytedance/seedance-v1-lite-text-to-video")
-RESOLUTION = os.environ.get("KIE_RESOLUTION", "720p")
-CLIP_SECONDS = 10
-NUM_CLIPS = 3
+KIE_MODEL = os.environ.get("KIE_SEEDANCE_MODEL", "bytedance/seedance-2-mini")
+RESOLUTION = os.environ.get("KIE_RESOLUTION", "480p")
+CLIP_SECONDS = int(os.environ.get("KIE_CLIP_SECONDS", "5"))
+# AI clips per reel. 1 = hook-clip hybrid (AI opener + card stills,
+# ~$0.20/day at 480p); 3 = full AI reel (~$1.40/day).
+NUM_CLIPS = int(os.environ.get("KIE_CLIPS", "1"))
+CARD_SECONDS = 6.0
 
 REEL_W, REEL_H = 1080, 1920
 FPS = 30
@@ -70,7 +73,7 @@ def _create_task(prompt: str, key: str) -> str:
             "model": KIE_MODEL,
             "input": {
                 "prompt": prompt,
-                "duration": str(CLIP_SECONDS),
+                "duration": CLIP_SECONDS,
                 "resolution": RESOLUTION,
                 "aspect_ratio": "9:16",
             },
@@ -170,30 +173,35 @@ def _overlay_png(lines_top: list[str], lines_bottom: list[str], out_path: Path) 
 
 
 def overlay_texts(recipe: dict, handle: str) -> list[tuple[list[str], list[str]]]:
+    """Hook first, value in the middle, CTA last."""
     name = recipe["name"]
+    n_ing = len(recipe["ingredients"])
     n_steps = len(recipe["steps"])
     return [
-        ([name], [f"Recipe of the Day"]),
+        ([f"Only {n_ing} ingredients!"], [name]),
         ([f"{n_steps} easy steps"], ["Full recipe in caption"]),
-        (["Follow for daily recipes"], [f"@{handle}"]),
+        (["Save this for later!"], [f"Follow @{handle}"]),
     ]
 
 
 def assemble_reel(
     clips: list[Path],
+    card_paths: list[Path],
     recipe: dict,
     handle: str,
     out_path: Path,
     voiceover: Path | None,
     music: Path | None,
 ) -> None:
+    """Stitch AI clip(s) (with hook overlays) + card stills into the reel."""
     ff = _ffmpeg()
     texts = overlay_texts(recipe, handle)
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_dir = Path(tmp)
-        # Normalize each clip to 1080x1920/30fps and burn in its overlay
         norm = []
+
+        # AI clips: normalize to 1080x1920/30fps and burn in the overlay
         for i, clip in enumerate(clips):
             ov = tmp_dir / f"ov{i}.png"
             _overlay_png(*texts[min(i, len(texts) - 1)], ov)
@@ -213,6 +221,25 @@ def assemble_reel(
             )
             norm.append(out)
 
+        # Recipe cards as still segments (they carry their own text)
+        for i, card in enumerate(card_paths):
+            out = tmp_dir / f"card{i}.mp4"
+            vf = (
+                f"scale={REEL_W}:{REEL_H}:force_original_aspect_ratio=decrease,"
+                f"pad={REEL_W}:{REEL_H}:(ow-iw)/2:(oh-ih)/2:color=0x24180F,"
+                f"fps={FPS},format=yuv420p"
+            )
+            subprocess.run(
+                [
+                    ff, "-y", "-loop", "1", "-t", str(CARD_SECONDS), "-i", str(card),
+                    "-vf", vf,
+                    "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "20",
+                    str(out),
+                ],
+                check=True, capture_output=True, text=True,
+            )
+            norm.append(out)
+
         concat_file = tmp_dir / "concat.txt"
         concat_file.write_text("\n".join(f"file '{p}'" for p in norm))
         silent = tmp_dir / "video.mp4"
@@ -222,7 +249,16 @@ def assemble_reel(
             check=True, capture_output=True, text=True,
         )
 
-        # Audio: voiceover on top of quiet music, faded out, clamped to video
+        # Audio: voiceover on top of quiet music, faded out, clamped to video.
+        # NOTE: use an explicit -t, not -shortest — the apad'd voiceover
+        # stream is infinite and -shortest hangs with copied video.
+        probe = subprocess.run(
+            [ff, "-i", str(silent)], capture_output=True, text=True
+        )
+        m = re.search(r"Duration: (\d+):(\d+):([\d.]+)", probe.stderr)
+        h, mnt, s = float(m.group(1)), float(m.group(2)), float(m.group(3))
+        video_len = h * 3600 + mnt * 60 + s
+
         cmd = [ff, "-y", "-i", str(silent)]
         filters, mix_inputs = [], []
         idx = 1
@@ -249,17 +285,18 @@ def assemble_reel(
             cmd += [
                 "-filter_complex", ";".join(filters),
                 "-map", "0:v", "-map", "[aout]",
-                "-c:a", "aac", "-b:a", "192k", "-shortest",
+                "-c:a", "aac", "-b:a", "192k",
             ]
         else:
             cmd += ["-c:a", "copy"]
-        cmd += ["-c:v", "copy", "-movflags", "+faststart", str(out_path)]
+        cmd += ["-t", f"{video_len:.2f}", "-c:v", "copy", "-movflags", "+faststart", str(out_path)]
         subprocess.run(cmd, check=True, capture_output=True, text=True)
 
 
 def make_ai_reel(
     recipe: dict,
     handle: str,
+    card_paths: list[Path],
     out_path: Path,
     voiceover: Path | None,
     music: Path | None,
@@ -267,4 +304,6 @@ def make_ai_reel(
     key = os.environ["KIE_API_KEY"]
     with tempfile.TemporaryDirectory() as tmp:
         clips = generate_clips(recipe, key, Path(tmp))
-        assemble_reel(clips, recipe, handle, out_path, voiceover, music)
+        # With a single AI hook clip, the cards carry the recipe content
+        cards = card_paths if NUM_CLIPS < 3 else []
+        assemble_reel(clips, cards, recipe, handle, out_path, voiceover, music)

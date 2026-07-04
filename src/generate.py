@@ -55,7 +55,8 @@ def build_caption(recipe: dict, date_label: str, music: Path | None = None) -> s
     lines += [f"{i}. {step}" for i, step in enumerate(recipe["steps"], start=1)]
     if recipe.get("youtube"):
         lines += ["", f"🎥 Video: {recipe['youtube']}"]
-    lines += ["", f"Follow @{HANDLE} for a new recipe every morning! 🔔"]
+    lines += ["", f"🔖 Save this recipe for later & share it with a foodie!"]
+    lines += [f"Follow @{HANDLE} for a new recipe every day! 🔔"]
     credits = "Recipe data: TheMealDB"
     if music is not None:
         credits += f" | Music: {music.stem}"
@@ -133,7 +134,11 @@ def main() -> None:
             if os.environ.get("KIE_API_KEY"):
                 try:
                     print("Generating AI video clips via Kie.ai (Seedance)...")
-                    make_ai_reel(recipe, HANDLE, video_path, vo_path, music)
+                    # Cards after the cover (the AI clip replaces the cover)
+                    content_cards = [
+                        posts_dir / f"{date_str}-{n}.jpg" for n in range(2, total_pages + 1)
+                    ]
+                    make_ai_reel(recipe, HANDLE, content_cards, video_path, vo_path, music)
                     reel_kind = "ai"
                 except Exception as exc:
                     print(f"AI reel failed, falling back to slideshow: {exc}", file=sys.stderr)
