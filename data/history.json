@@ -1,0 +1,20 @@
+[
+  {
+    "date": "2026-07-04",
+    "name": "Nimmakaya Pulihora",
+    "category": "Rice",
+    "area": "Telugu",
+    "format": "carousel",
+    "kind": null,
+    "voiceover": null
+  },
+  {
+    "date": "2026-07-04",
+    "name": "Ragi Sangati",
+    "category": "Main",
+    "area": "Telugu",
+    "format": "reel",
+    "kind": "ai",
+    "voiceover": "te"
+  }
+]
