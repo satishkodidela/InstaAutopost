@@ -21,7 +21,7 @@ def _clean(text: str) -> str:
 
 
 def fetch_headlines(count: int = 5) -> list[dict]:
-    """Return up to `count` headlines as {"title": ..., "source": ...} dicts.
+    """Return up to `count` items as {"title", "source", "summary"} dicts.
 
     Interleaves feeds so no single outlet dominates, and dedupes
     near-identical titles.
@@ -37,8 +37,11 @@ def fetch_headlines(count: int = 5) -> list[dict]:
         items = []
         for entry in parsed.entries[:MAX_PER_FEED]:
             title = _clean(entry.get("title", ""))
+            summary = _clean(entry.get("summary", entry.get("description", "")))
+            if summary.lower().startswith(title.lower()):
+                summary = summary[len(title):].lstrip(" .:-–")
             if title:
-                items.append({"title": title, "source": source})
+                items.append({"title": title, "source": source, "summary": summary})
         per_feed.append(items)
 
     headlines: list[dict] = []

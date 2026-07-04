@@ -1,13 +1,16 @@
-"""Publish today's generated card to Instagram via the Graph API.
+"""Publish today's generated cards to Instagram via the Graph API.
+
+Posts a carousel when multiple cards exist for today, a single image
+otherwise.
 
 Requires env vars:
   IG_USER_ID        - Instagram professional account user ID
   IG_ACCESS_TOKEN   - long-lived access token
   GITHUB_REPOSITORY - owner/repo (set automatically in GitHub Actions);
                       used to build the public raw.githubusercontent.com
-                      image URL. The repo must be public.
+                      image URLs. The repo must be public.
 
-The image must already be committed and pushed (the workflow does this
+The images must already be committed and pushed (the workflow does this
 before running this script).
 """
 
@@ -62,6 +65,20 @@ def wait_for_container(creation_id: str, token: str, attempts: int = 20, delay: 
     sys.exit(1)
 
 
+def create_container(ig_user_id: str, token: str, data: dict) -> str:
+    resp = requests.post(
+        f"{API_BASE}/{ig_user_id}/media",
+        data={**data, "access_token": token},
+        timeout=60,
+    ).json()
+    creation_id = resp.get("id")
+    if not creation_id:
+        print(f"Failed to create media container: {resp}", file=sys.stderr)
+        sys.exit(1)
+    wait_for_container(creation_id, token)
+    return creation_id
+
+
 def main() -> None:
     ig_user_id = require_env("IG_USER_ID")
     token = require_env("IG_ACCESS_TOKEN")
@@ -71,30 +88,45 @@ def main() -> None:
     date_str = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d")
     posts_dir = Path(__file__).resolve().parent.parent / "posts"
     caption_path = posts_dir / f"{date_str}.txt"
-    image_path = posts_dir / f"{date_str}.jpg"
+    images = sorted(posts_dir.glob(f"{date_str}-*.jpg")) or [posts_dir / f"{date_str}.jpg"]
+    images = [p for p in images if p.exists()]
 
-    if not image_path.exists() or not caption_path.exists():
+    if not images or not caption_path.exists():
         print(f"No generated post found for {date_str}. Run generate.py first.", file=sys.stderr)
         sys.exit(1)
 
     caption = caption_path.read_text(encoding="utf-8")
-    image_url = f"https://raw.githubusercontent.com/{repo}/{branch}/posts/{date_str}.jpg"
+    image_urls = [
+        f"https://raw.githubusercontent.com/{repo}/{branch}/posts/{p.name}" for p in images
+    ]
 
-    print(f"Waiting for image to be reachable: {image_url}")
-    wait_for_url(image_url)
+    for url in image_urls:
+        print(f"Waiting for image to be reachable: {url}")
+        wait_for_url(url)
 
-    print("Creating media container...")
-    resp = requests.post(
-        f"{API_BASE}/{ig_user_id}/media",
-        data={"image_url": image_url, "caption": caption, "access_token": token},
-        timeout=60,
-    ).json()
-    creation_id = resp.get("id")
-    if not creation_id:
-        print(f"Failed to create media container: {resp}", file=sys.stderr)
-        sys.exit(1)
-
-    wait_for_container(creation_id, token)
+    if len(image_urls) == 1:
+        print("Creating single-image container...")
+        creation_id = create_container(
+            ig_user_id, token, {"image_url": image_urls[0], "caption": caption}
+        )
+    else:
+        print(f"Creating {len(image_urls)} carousel item containers...")
+        children = [
+            create_container(
+                ig_user_id, token, {"image_url": url, "is_carousel_item": "true"}
+            )
+            for url in image_urls
+        ]
+        print("Creating carousel container...")
+        creation_id = create_container(
+            ig_user_id,
+            token,
+            {
+                "media_type": "CAROUSEL",
+                "children": ",".join(children),
+                "caption": caption,
+            },
+        )
 
     print("Publishing...")
     resp = requests.post(

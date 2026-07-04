@@ -1,18 +1,20 @@
 # InstaAutopost — Daily India News on Instagram
 
-Automatically posts a daily "India News Highlights" card to Instagram at
-**8:00 AM IST** using GitHub Actions and the official Instagram Graph API.
+Automatically posts a daily "India News Highlights" **carousel** (cover
+card + story cards with summaries) to Instagram at **8:00 AM IST** using
+GitHub Actions and the official Instagram Graph API.
 
 ## How it works
 
 1. **GitHub Actions** wakes up daily at 8:00 AM IST (also runnable manually).
 2. `src/generate.py` pulls top headlines from Times of India, The Hindu,
-   NDTV, and Indian Express RSS feeds, renders a 1080×1350 news card with
-   Pillow, and writes a caption.
-3. The image is committed to `posts/` so Instagram can fetch it from a
-   public `raw.githubusercontent.com` URL (the API requires a public URL).
-4. `src/publish.py` creates a media container and publishes it via the
-   Instagram Graph API.
+   NDTV, and Indian Express RSS feeds, then renders three 1080×1350 cards
+   with Pillow: a cover, plus two story cards (3 headlines each, with
+   short summaries), and writes a caption.
+3. The images are committed to `posts/` so Instagram can fetch them from
+   public `raw.githubusercontent.com` URLs (the API requires public URLs).
+4. `src/publish.py` creates carousel item containers, wraps them in a
+   carousel container, and publishes via the Instagram Graph API.
 
 ## One-time setup
 
@@ -56,8 +58,8 @@ workflow**. Check your Instagram feed.
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python src/generate.py        # writes posts/YYYY-MM-DD.jpg + .txt
-open posts/*.jpg              # preview the card
+python src/generate.py        # writes posts/YYYY-MM-DD-{1,2,3}.jpg + .txt
+open posts/*.jpg              # preview the cards
 ```
 
 Publishing locally also works if you export `IG_USER_ID`, `IG_ACCESS_TOKEN`,
@@ -67,6 +69,7 @@ and `GITHUB_REPOSITORY=owner/repo` — but the image must already be pushed.
 
 - **Posting time**: edit the cron in `.github/workflows/daily-post.yml`
   (cron is in UTC; IST = UTC+5:30).
-- **News sources / count**: edit `FEEDS` in `src/news.py`.
+- **News sources / count**: edit `FEEDS` in `src/news.py`; headline count
+  and stories-per-card are constants at the top of `src/generate.py`.
 - **Card design**: colors, fonts, and layout live in `src/card.py`.
 - **Caption & hashtags**: `HASHTAGS` and `build_caption()` in `src/generate.py`.
