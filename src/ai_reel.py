@@ -149,23 +149,36 @@ def build_generation_prompts(recipe: dict, n_gens: int) -> list[str]:
     return prompts
 
 
+def _task_input(prompt: str, ref_image: str | None, with_audio: bool) -> dict:
+    task_input = {
+        "prompt": prompt,
+        "duration": GEN_SECONDS,
+        "resolution": RESOLUTION,
+        "aspect_ratio": "9:16",
+        "generate_audio": with_audio,
+    }
+    if ref_image:
+        task_input["reference_image_urls"] = [ref_image]
+    return task_input
+
+
 def generate_clips(prompts: list[str], ref_image: str | None, key: str, out_dir: Path) -> list[Path]:
-    task_ids = []
-    for p in prompts:
-        task_input = {
-            "prompt": p,
-            "duration": GEN_SECONDS,
-            "resolution": RESOLUTION,
-            "aspect_ratio": "9:16",
-            "generate_audio": True,
-        }
-        if ref_image:
-            task_input["reference_image_urls"] = [ref_image]
-        task_ids.append(create_task(KIE_MODEL, task_input, key))
+    task_ids = [
+        create_task(KIE_MODEL, _task_input(p, ref_image, True), key) for p in prompts
+    ]
     print(f"  {len(task_ids)} Seedance generations created, waiting...", flush=True)
     paths = []
     for i, task_id in enumerate(task_ids):
-        url = poll_task(task_id, key, exts="mp4")
+        try:
+            url = poll_task(task_id, key, exts="mp4")
+        except RuntimeError as exc:
+            # Seedance's audio safety filter false-positives on ambient
+            # sound resembling speech — retry the generation silent
+            if "audio" not in str(exc).lower():
+                raise
+            print(f"  generation {i + 1} hit the audio filter; retrying without audio", flush=True)
+            retry_id = create_task(KIE_MODEL, _task_input(prompts[i], ref_image, False), key)
+            url = poll_task(retry_id, key, exts="mp4")
         path = out_dir / f"gen{i:02d}.mp4"
         download(url, path)
         print(f"  generation {i + 1}/{len(task_ids)} done", flush=True)

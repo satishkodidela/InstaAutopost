@@ -98,14 +98,14 @@ def build_script(recipe: dict, handle: str) -> str:
     # Sentence order mirrors the video beats: hook -> ingredients ->
     # first step -> cooking -> serve line over the final reveal -> follow CTA
     lines = [
-        f"This {name} needs just {n_ing} ingredients, that's it!",
-        "Everything you need is right here on the screen.",
+        f"This {name} needs just {n_ing} ingredients!",
+        "What you need is on the screen.",
         f"First, {frags[0]}.",
     ]
     if len(frags) == 3:
         lines.append(f"Then, {frags[1]}.")
     lines.append(f"And finally, {frags[-1]}.")
-    lines.append("Full recipe is in the caption. Follow us for a new tasty recipe every single day!")
+    lines.append("Full recipe in the caption. Follow for a new recipe every day!")
     return " ".join(lines)
 
 

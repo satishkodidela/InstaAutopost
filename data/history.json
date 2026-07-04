@@ -25,5 +25,14 @@
     "format": "reel",
     "kind": "ai",
     "voiceover": "te"
+  },
+  {
+    "date": "2026-07-04",
+    "name": "Pappu Charu",
+    "category": "Dal",
+    "area": "Telugu",
+    "format": "carousel",
+    "kind": null,
+    "voiceover": null
   }
 ]
