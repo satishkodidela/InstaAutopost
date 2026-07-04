@@ -19,7 +19,7 @@ from zoneinfo import ZoneInfo
 
 import requests
 
-from publish import API_BASE, create_container
+from publish import API_BASE, create_container, publish
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -38,11 +38,12 @@ def load_dotenv() -> None:
 
 def upload_temp(path: Path) -> str:
     """Upload to tmpfiles.org and return the direct-download URL."""
+    mime = "video/mp4" if path.suffix == ".mp4" else "image/jpeg"
     with path.open("rb") as fh:
         resp = requests.post(
             "https://tmpfiles.org/api/v1/upload",
-            files={"file": (path.name, fh, "image/jpeg")},
-            timeout=60,
+            files={"file": (path.name, fh, mime)},
+            timeout=180,
         )
     resp.raise_for_status()
     url = resp.json()["data"]["url"]
@@ -77,13 +78,32 @@ def main() -> None:
 
     date_str = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d")
     posts_dir = ROOT / "posts"
+    video = posts_dir / f"{date_str}.mp4"
     images = sorted(posts_dir.glob(f"{date_str}-*.jpg"))
     caption_path = posts_dir / f"{date_str}.txt"
-    if not images or not caption_path.exists():
+    if (not images and not video.exists()) or not caption_path.exists():
         print(f"No generated post for {date_str}. Run src/generate.py first.", file=sys.stderr)
         sys.exit(1)
 
     caption = caption_path.read_text(encoding="utf-8")
+
+    if video.exists():
+        print("Uploading video to temporary host...")
+        video_url = upload_temp(video)
+        print(f"  {video.name} -> {video_url}")
+        print("Creating Reel container (video processing can take a minute)...")
+        creation_id = create_container(
+            ig_user_id,
+            token,
+            {
+                "media_type": "REELS",
+                "video_url": video_url,
+                "caption": caption,
+                "share_to_feed": "true",
+            },
+        )
+        publish(ig_user_id, token, creation_id)
+        return
 
     print(f"Uploading {len(images)} images to temporary host...")
     urls = []
@@ -109,18 +129,7 @@ def main() -> None:
             {"media_type": "CAROUSEL", "children": ",".join(children), "caption": caption},
         )
 
-    print("Publishing...")
-    resp = requests.post(
-        f"{API_BASE}/{ig_user_id}/media_publish",
-        data={"creation_id": creation_id, "access_token": token},
-        timeout=60,
-    ).json()
-    media_id = resp.get("id")
-    if not media_id:
-        print(f"Failed to publish: {resp}", file=sys.stderr)
-        sys.exit(1)
-
-    print(f"\n✅ Published! Media ID: {media_id}")
+    publish(ig_user_id, token, creation_id)
     print("Check your Instagram feed.")
 
 

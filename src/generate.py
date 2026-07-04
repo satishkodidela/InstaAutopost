@@ -1,11 +1,20 @@
-"""Generate today's recipe carousel: fetch a recipe, render cards, write caption.
+"""Generate today's recipe post: fetch a recipe, render cards, write caption.
+
+Randomly posts as either an image carousel or a Reel (slideshow video of
+the same cards with optional background music from assets/music/).
 
 Outputs posts/YYYY-MM-DD-1.jpg (photo cover), -2.jpg (ingredients),
--3.jpg[, -4.jpg] (method), and posts/YYYY-MM-DD.txt (caption), dated in IST.
-Tracks posted recipe IDs in data/posted.json to avoid repeats.
+-3.jpg[...] (method), a follow card, posts/YYYY-MM-DD.txt (caption), and —
+when the Reel format is drawn — posts/YYYY-MM-DD.mp4 (publish.py posts the
+video when it exists, the images otherwise). Dated in IST. Tracks posted
+recipe IDs in data/posted.json to avoid repeats.
+
+Set POST_FORMAT=reel or POST_FORMAT=carousel to override the random draw.
 """
 
 import json
+import os
+import random
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -13,9 +22,11 @@ from zoneinfo import ZoneInfo
 
 from card import make_cover, make_follow_card, make_ingredients_card, make_steps_cards
 from recipe import download_photo, fetch_recipe
+from reel import build_reel
 
 MAX_STEP_CARDS = 3
 HANDLE = "roadside_mobile"
+REEL_PROBABILITY = 0.5
 
 HASHTAGS = (
     "#RecipeOfTheDay #Foodie #HomeCooking #EasyRecipes #FoodLovers "
@@ -23,7 +34,12 @@ HASHTAGS = (
 )
 
 
-def build_caption(recipe: dict, date_label: str) -> str:
+def pick_music(root: Path) -> Path | None:
+    tracks = sorted((root / "assets" / "music").glob("*.mp3"))
+    return random.choice(tracks) if tracks else None
+
+
+def build_caption(recipe: dict, date_label: str, music: Path | None = None) -> str:
     meta = " • ".join(filter(None, [recipe["area"], recipe["category"]]))
     lines = [f"🍽️ Recipe of the Day — {recipe['name']}"]
     if meta:
@@ -37,11 +53,19 @@ def build_caption(recipe: dict, date_label: str) -> str:
     if recipe.get("youtube"):
         lines += ["", f"🎥 Video: {recipe['youtube']}"]
     lines += ["", f"Follow @{HANDLE} for a new recipe every morning! 🔔"]
-    lines += ["", "Recipe data: TheMealDB", "", HASHTAGS]
+    credits = "Recipe data: TheMealDB"
+    if music is not None:
+        credits += f" | Music: {music.stem}"
+    lines += ["", credits, "", HASHTAGS]
 
     caption = "\n".join(lines)
-    if len(caption) > 2150:  # Instagram caption limit is 2200 chars
-        caption = caption[:2150].rsplit("\n", 1)[0] + "\n…\n" + HASHTAGS
+    # Instagram's limit is 2200; leave margin since it counts emoji
+    # differently than Python, and reserve room for the hashtags we
+    # re-append after truncating.
+    max_len = 2000
+    if len(caption) > max_len:
+        keep = max_len - len(HASHTAGS) - 5
+        caption = caption[:keep].rsplit("\n", 1)[0] + "\n…\n" + HASHTAGS
     return caption
 
 
@@ -85,16 +109,32 @@ def main() -> None:
         str(posts_dir / f"{date_str}-{total_pages}.jpg"),
     )
 
+    fmt = os.environ.get("POST_FORMAT")
+    if fmt not in ("reel", "carousel"):
+        fmt = "reel" if random.random() < REEL_PROBABILITY else "carousel"
+
+    music = None
+    if fmt == "reel":
+        music = pick_music(root)
+        card_paths = [posts_dir / f"{date_str}-{n}.jpg" for n in range(1, total_pages + 1)]
+        build_reel(card_paths, photo, posts_dir / f"{date_str}.mp4", music)
+    else:
+        # A leftover video from an earlier run today would make publish.py
+        # post a reel instead of the carousel
+        (posts_dir / f"{date_str}.mp4").unlink(missing_ok=True)
+
     (posts_dir / f"{date_str}.txt").write_text(
-        build_caption(recipe, date_label), encoding="utf-8"
+        build_caption(recipe, date_label, music), encoding="utf-8"
     )
 
     posted.append(recipe["id"])
     posted_path.write_text(json.dumps(posted, indent=0) + "\n")
 
-    print(f"Generated {total_pages} cards for: {recipe['name']}")
+    print(f"Generated {total_pages} cards for: {recipe['name']} [{fmt}]")
     print(f"  Cuisine: {recipe['area']} | Category: {recipe['category']}")
     print(f"  {len(recipe['ingredients'])} ingredients, {len(recipe['steps'])} steps")
+    if music is not None:
+        print(f"  Music: {music.name}")
 
 
 if __name__ == "__main__":

@@ -1,8 +1,11 @@
 # InstaAutopost — Recipe of the Day on Instagram
 
-Automatically posts a daily recipe **carousel** — real dish photo cover,
-ingredients card, and step-by-step method cards — to Instagram at
-**8:00 AM IST** using GitHub Actions and the official Instagram Graph API.
+Automatically posts a daily recipe to Instagram at **8:00 AM IST** using
+GitHub Actions and the official Instagram Graph API. Each day it randomly
+posts either an image **carousel** (dish photo cover, ingredients, method
+cards, follow CTA) or a **Reel** — a 1080×1920 slideshow of the same cards
+over a blurred dish-photo background, with royalty-free music from
+`assets/music/`.
 
 ## How it works
 
@@ -72,6 +75,13 @@ and `GITHUB_REPOSITORY=owner/repo` — but the image must already be pushed.
   (cron is in UTC; IST = UTC+5:30).
 - **Dietary filter**: add categories to `EXCLUDED_CATEGORIES` in
   `src/recipe.py` (e.g. `["Beef", "Pork"]`) to never post them.
+- **Reel vs carousel mix**: `REEL_PROBABILITY` in `src/generate.py`
+  (0 = always carousel, 1 = always Reel). Force a format for one run with
+  `POST_FORMAT=reel` or `POST_FORMAT=carousel`.
+- **Music**: drop royalty-free `.mp3` files in `assets/music/` — one is
+  picked at random per Reel and credited in the caption by filename (see
+  `assets/music/README.md`). Instagram's licensed music library is not
+  available via the API, so commercial songs can't be used.
 - **Card design**: colors, fonts, and layout live in `src/card.py`.
 - **Caption & hashtags**: `HASHTAGS` and `build_caption()` in `src/generate.py`.
 - **Attribution**: recipe data and photos come from TheMealDB's free/dev

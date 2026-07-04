@@ -1,7 +1,7 @@
-"""Publish today's generated cards to Instagram via the Graph API.
+"""Publish today's generated post to Instagram via the Graph API.
 
-Posts a carousel when multiple cards exist for today, a single image
-otherwise.
+Posts a Reel when posts/YYYY-MM-DD.mp4 exists, a carousel when multiple
+cards exist for today, and a single image otherwise.
 
 Requires env vars:
   IG_USER_ID        - Instagram professional account user ID
@@ -47,7 +47,7 @@ def wait_for_url(url: str, attempts: int = 12, delay: int = 10) -> None:
     sys.exit(1)
 
 
-def wait_for_container(creation_id: str, token: str, attempts: int = 20, delay: int = 5) -> None:
+def wait_for_container(creation_id: str, token: str, attempts: int = 60, delay: int = 5) -> None:
     for _ in range(attempts):
         resp = requests.get(
             f"{API_BASE}/{creation_id}",
@@ -79,6 +79,20 @@ def create_container(ig_user_id: str, token: str, data: dict) -> str:
     return creation_id
 
 
+def publish(ig_user_id: str, token: str, creation_id: str) -> None:
+    print("Publishing...")
+    resp = requests.post(
+        f"{API_BASE}/{ig_user_id}/media_publish",
+        data={"creation_id": creation_id, "access_token": token},
+        timeout=60,
+    ).json()
+    media_id = resp.get("id")
+    if not media_id:
+        print(f"Failed to publish: {resp}", file=sys.stderr)
+        sys.exit(1)
+    print(f"Published! Media ID: {media_id}")
+
+
 def main() -> None:
     ig_user_id = require_env("IG_USER_ID")
     token = require_env("IG_ACCESS_TOKEN")
@@ -88,17 +102,38 @@ def main() -> None:
     date_str = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d")
     posts_dir = Path(__file__).resolve().parent.parent / "posts"
     caption_path = posts_dir / f"{date_str}.txt"
+    video = posts_dir / f"{date_str}.mp4"
     images = sorted(posts_dir.glob(f"{date_str}-*.jpg")) or [posts_dir / f"{date_str}.jpg"]
     images = [p for p in images if p.exists()]
 
-    if not images or not caption_path.exists():
+    if (not images and not video.exists()) or not caption_path.exists():
         print(f"No generated post found for {date_str}. Run generate.py first.", file=sys.stderr)
         sys.exit(1)
 
     caption = caption_path.read_text(encoding="utf-8")
-    image_urls = [
-        f"https://raw.githubusercontent.com/{repo}/{branch}/posts/{p.name}" for p in images
-    ]
+
+    def raw_url(name: str) -> str:
+        return f"https://raw.githubusercontent.com/{repo}/{branch}/posts/{name}"
+
+    if video.exists():
+        video_url = raw_url(video.name)
+        print(f"Waiting for video to be reachable: {video_url}")
+        wait_for_url(video_url)
+        print("Creating Reel container...")
+        creation_id = create_container(
+            ig_user_id,
+            token,
+            {
+                "media_type": "REELS",
+                "video_url": video_url,
+                "caption": caption,
+                "share_to_feed": "true",
+            },
+        )
+        publish(ig_user_id, token, creation_id)
+        return
+
+    image_urls = [raw_url(p.name) for p in images]
 
     for url in image_urls:
         print(f"Waiting for image to be reachable: {url}")
@@ -128,18 +163,7 @@ def main() -> None:
             },
         )
 
-    print("Publishing...")
-    resp = requests.post(
-        f"{API_BASE}/{ig_user_id}/media_publish",
-        data={"creation_id": creation_id, "access_token": token},
-        timeout=60,
-    ).json()
-    media_id = resp.get("id")
-    if not media_id:
-        print(f"Failed to publish: {resp}", file=sys.stderr)
-        sys.exit(1)
-
-    print(f"Published! Media ID: {media_id}")
+    publish(ig_user_id, token, creation_id)
 
 
 if __name__ == "__main__":
