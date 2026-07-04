@@ -80,30 +80,34 @@ def _step_fragment(step: str, max_words: int = 10) -> str:
     return frag[0].lower() + frag[1:] if frag else ""
 
 
-def build_script(recipe: dict, handle: str) -> str:
-    """Payoff-first spoken script (~65-75 words ≈ 25s at conversational pace).
+def build_script(recipe: dict, handle: str, target_seconds: float = 22.0) -> str:
+    """Payoff-first spoken script scaled to the reel length (~2.8 words/sec).
 
     Written in simple conversational English; Sarvam's code-mixed mode
     turns it into natural everyday Telugu with English words kept in.
+    Sentence order mirrors the video beats: hook -> ingredients -> steps
+    in order -> serve line over the final reveal -> follow CTA.
     """
     name = recipe["name"]
     n_ing = len(recipe["ingredients"])
     steps = recipe["steps"]
-    picks = [steps[0]]
-    if len(steps) > 2:
-        picks.append(steps[len(steps) // 2])
-    picks.append(steps[-1])
-    frags = [_step_fragment(s, max_words=8) for s in picks]
 
-    # Sentence order mirrors the video beats: hook -> ingredients ->
-    # first step -> cooking -> serve line over the final reveal -> follow CTA
+    # Longer reels narrate more steps (24s reel -> 3, 36s -> 4, 48s+ -> 5).
+    # Telugu runs ~1.5x longer than the English source, so stay lean.
+    n_frags = 3 if target_seconds < 28 else (4 if target_seconds < 40 else 5)
+    n_frags = min(n_frags, len(steps))
+    stride = (len(steps) - 1) / max(1, n_frags - 1)
+    picks = [steps[round(i * stride)] for i in range(n_frags)]
+    max_words = 8 if target_seconds < 28 else 10
+    frags = [_step_fragment(s, max_words=max_words) for s in picks]
+
+    connectors = ["First,", "Then,", "Next,", "After that,"]
     lines = [
         f"This {name} needs just {n_ing} ingredients!",
         "What you need is on the screen.",
-        f"First, {frags[0]}.",
     ]
-    if len(frags) == 3:
-        lines.append(f"Then, {frags[1]}.")
+    for i, frag in enumerate(frags[:-1]):
+        lines.append(f"{connectors[min(i, len(connectors) - 1)]} {frag}.")
     lines.append(f"And finally, {frags[-1]}.")
     lines.append("Full recipe in the caption. Follow for a new recipe every day!")
     return " ".join(lines)
@@ -194,7 +198,7 @@ def make_voiceover(
     If target_seconds is given and the audio runs longer, it is
     regenerated at a faster pace so it never outlives the video.
     """
-    script = build_script(recipe, handle)
+    script = build_script(recipe, handle, target_seconds=target_seconds or 22.0)
     sarvam_key = os.environ.get("SARVAM_API_KEY")
 
     if sarvam_key:
