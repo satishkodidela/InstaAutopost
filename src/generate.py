@@ -27,8 +27,9 @@ from recipe import download_photo, fetch_recipe
 from voiceover import make_voiceover
 
 MAX_STEP_CARDS = 3
-HANDLE = "roadside_mobile"
-REEL_PROBABILITY = 0.5
+# Overridable via env / repo variables (empty values fall through)
+HANDLE = os.environ.get("IG_HANDLE") or "roadside_mobile"
+REEL_PROBABILITY = float(os.environ.get("REEL_PROBABILITY") or "0.5")
 
 HASHTAGS = (
     "#RecipeOfTheDay #Foodie #HomeCooking #EasyRecipes #FoodLovers "
@@ -39,6 +40,40 @@ HASHTAGS = (
 def pick_music(root: Path) -> Path | None:
     tracks = sorted((root / "assets" / "music").glob("*.mp3"))
     return random.choice(tracks) if tracks else None
+
+
+def pop_queued_recipe(root: Path) -> dict | None:
+    """Owner-supplied recipe queue: recipes/queue/*.json, oldest first.
+
+    Takes priority over TheMealDB. The consumed file is deleted (the
+    workflow commits the deletion). See recipes/README.md for the schema.
+    """
+    queue = sorted((root / "recipes" / "queue").glob("*.json"))
+    if not queue:
+        return None
+    path = queue[0]
+    data = json.loads(path.read_text(encoding="utf-8"))
+    recipe = {
+        "id": f"custom-{path.stem}",
+        "name": data["name"],
+        "category": data.get("category", ""),
+        "area": data.get("area", ""),
+        "thumb": data["image_url"],
+        "ingredients": [
+            {"name": i["name"], "measure": i.get("measure", "")}
+            for i in data["ingredients"]
+        ],
+        "steps": data["steps"],
+        "youtube": data.get("youtube", ""),
+        "tags": data.get("tags", ""),
+    }
+    path.unlink()
+    print(f"Using queued custom recipe: {recipe['name']} ({path.name})")
+    return recipe
+
+
+def load_history(path: Path) -> list[dict]:
+    return json.loads(path.read_text()) if path.exists() else []
 
 
 def build_caption(recipe: dict, date_label: str, music: Path | None = None) -> str:
@@ -87,9 +122,20 @@ def main() -> None:
     posted: list[str] = (
         json.loads(posted_path.read_text()) if posted_path.exists() else []
     )
+    history_path = data_dir / "history.json"
+    history = load_history(history_path)
+    last_post = history[-1] if history else None
+    if last_post:
+        print(f"Last post: {last_post.get('name')} [{last_post.get('format')}] "
+              f"on {last_post.get('date')}")
 
     try:
-        recipe = fetch_recipe(seen_ids=set(posted))
+        recipe = pop_queued_recipe(root)
+        if recipe is None:
+            recipe = fetch_recipe(
+                seen_ids=set(posted),
+                avoid_category=(last_post or {}).get("category"),
+            )
         photo = download_photo(recipe["thumb"])
     except Exception as exc:
         print(f"Failed to fetch recipe: {exc}", file=sys.stderr)
@@ -155,6 +201,19 @@ def main() -> None:
 
     posted.append(recipe["id"])
     posted_path.write_text(json.dumps(posted, indent=0) + "\n")
+
+    history.append(
+        {
+            "date": date_str,
+            "name": recipe["name"],
+            "category": recipe["category"],
+            "area": recipe["area"],
+            "format": fmt,
+            "kind": reel_kind,
+            "voiceover": vo_lang,
+        }
+    )
+    history_path.write_text(json.dumps(history, indent=2) + "\n")
 
     fmt_label = f"{fmt}:{reel_kind}" if reel_kind else fmt
     print(f"Generated {total_pages} cards for: {recipe['name']} [{fmt_label}]")

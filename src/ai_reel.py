@@ -25,10 +25,11 @@ from PIL import Image, ImageDraw
 from card import FONT_CANDIDATES_BOLD, _font, _wrap
 
 KIE_BASE = "https://api.kie.ai/api/v1"
-KIE_MODEL = os.environ.get("KIE_SEEDANCE_MODEL", "bytedance/seedance-2-mini")
-RESOLUTION = os.environ.get("KIE_RESOLUTION", "480p")
-TARGET_SECONDS = int(os.environ.get("REEL_SECONDS", "44"))
-SHOT_SECONDS = 5
+# All knobs overridable via env (empty values fall through to defaults)
+KIE_MODEL = os.environ.get("KIE_SEEDANCE_MODEL") or "bytedance/seedance-2-mini"
+RESOLUTION = os.environ.get("KIE_RESOLUTION") or "480p"
+TARGET_SECONDS = int(os.environ.get("REEL_SECONDS") or "44")
+SHOT_SECONDS = int(os.environ.get("SHOT_SECONDS") or "5")
 CREDITS_PER_SECOND = 9.5  # measured for seedance-2-mini @480p
 MIN_SHOTS = 5
 
@@ -38,7 +39,9 @@ ACCENT = (232, 93, 38)
 
 STYLE = (
     "vertical 9:16 food reel, cinematic, warm natural kitchen light, "
-    "shallow depth of field, appetizing, high detail, smooth camera motion"
+    "shallow depth of field, appetizing, high detail, smooth camera motion. "
+    "IMPORTANT: the dish must look exactly like the reference image — same "
+    "plating, same colors, same kitchen setting throughout"
 )
 
 
@@ -117,19 +120,22 @@ def build_shot_list(recipe: dict, n_shots: int) -> list[str]:
     return [*shots, reveal]
 
 
-def _create_task(prompt: str, key: str) -> str:
+def _create_task(prompt: str, key: str, ref_image: str | None = None) -> str:
+    payload_input = {
+        "prompt": prompt,
+        "duration": SHOT_SECONDS,
+        "resolution": RESOLUTION,
+        "aspect_ratio": "9:16",
+        "generate_audio": False,
+    }
+    if ref_image:
+        # Anchor every shot to the real dish photo so hook, cooking and
+        # reveal all show the SAME dish (expectation == reality)
+        payload_input["reference_image_urls"] = [ref_image]
     resp = requests.post(
         f"{KIE_BASE}/jobs/createTask",
         headers=_headers(key),
-        json={
-            "model": KIE_MODEL,
-            "input": {
-                "prompt": prompt,
-                "duration": SHOT_SECONDS,
-                "resolution": RESOLUTION,
-                "aspect_ratio": "9:16",
-            },
-        },
+        json={"model": KIE_MODEL, "input": payload_input},
         timeout=60,
     )
     body = resp.json()
@@ -165,9 +171,11 @@ def _poll_task(task_id: str, key: str, timeout_s: int = 1200) -> str:
     raise RuntimeError(f"Kie.ai task {task_id} timed out after {timeout_s}s")
 
 
-def generate_shots(prompts: list[str], key: str, out_dir: Path) -> list[Path]:
+def generate_shots(
+    prompts: list[str], key: str, out_dir: Path, ref_image: str | None = None
+) -> list[Path]:
     """Create all tasks up front (they render in parallel), then collect."""
-    task_ids = [_create_task(p, key) for p in prompts]
+    task_ids = [_create_task(p, key, ref_image) for p in prompts]
     print(f"  {len(task_ids)} Seedance tasks created, waiting for renders...", flush=True)
     paths = []
     for i, task_id in enumerate(task_ids):
@@ -230,8 +238,13 @@ def assemble_reel(
 ) -> None:
     ff = _ffmpeg()
     n_ing = len(recipe["ingredients"])
+    # Back the "N ingredients" claim on screen: list the key ones on shot 2
+    key_ing = [i["name"] for i in recipe["ingredients"][:6]]
+    if n_ing > len(key_ing):
+        key_ing.append(f"+ {n_ing - len(key_ing)} more")
     overlays = {
         0: ([f"Only {n_ing} ingredients!"], [recipe["name"]]),
+        1: (["What you need:"], key_ing),
         len(shots) - 1: (["Save this for later!"], [f"Follow @{handle}"]),
     }
 
@@ -333,6 +346,7 @@ def make_ai_reel(
         n_shots = affordable
 
     prompts = build_shot_list(recipe, n_shots)
+    ref_image = recipe.get("thumb") or None
     with tempfile.TemporaryDirectory() as tmp:
-        shots = generate_shots(prompts, key, Path(tmp))
+        shots = generate_shots(prompts, key, Path(tmp), ref_image)
         assemble_reel(shots, recipe, handle, out_path, voiceover, music)

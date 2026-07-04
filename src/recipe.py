@@ -53,14 +53,17 @@ def _parse(meal: dict) -> dict:
     }
 
 
-def fetch_recipe(seen_ids: set[str], attempts: int = 15) -> dict:
+def fetch_recipe(
+    seen_ids: set[str], attempts: int = 15, avoid_category: str | None = None
+) -> dict:
     """Fetch a random recipe, skipping already-posted and excluded ones.
 
-    Falls back to whatever it last fetched if every attempt was a repeat
+    Prefers a different category than yesterday's post (variety), and
+    falls back to whatever it last fetched if every attempt was a repeat
     (better to repeat a dish than to skip a day).
     """
     fallback = None
-    for _ in range(attempts):
+    for i in range(attempts):
         resp = requests.get(RANDOM_URL, timeout=20)
         resp.raise_for_status()
         meal = _parse(resp.json()["meals"][0])
@@ -69,8 +72,12 @@ def fetch_recipe(seen_ids: set[str], attempts: int = 15) -> dict:
         if meal["category"] in EXCLUDED_CATEGORIES:
             continue
         fallback = meal
-        if meal["id"] not in seen_ids:
-            return meal
+        if meal["id"] in seen_ids:
+            continue
+        # Soft preference: first half of attempts also avoid yesterday's category
+        if avoid_category and meal["category"] == avoid_category and i < attempts // 2:
+            continue
+        return meal
     if fallback is None:
         raise RuntimeError("Could not fetch a usable recipe from TheMealDB.")
     return fallback

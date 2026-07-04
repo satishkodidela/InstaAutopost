@@ -9,13 +9,14 @@ or fails, so the pipeline never blocks on the paid service.
 import asyncio
 import base64
 import os
+import re
 import sys
 from pathlib import Path
 
 import requests
 
 SARVAM_BASE = "https://api.sarvam.ai"
-SARVAM_SPEAKER = os.environ.get("SARVAM_SPEAKER", "shreya")
+SARVAM_SPEAKER = os.environ.get("SARVAM_SPEAKER") or "shreya"
 EDGE_VOICE_EN = "en-IN-NeerjaNeural"
 
 HOOKS = [
@@ -27,9 +28,53 @@ HOOKS = [
 ]
 
 
+def _flame_word(celsius: int) -> str:
+    if celsius < 150:
+        return "low heat"
+    if celsius <= 190:
+        return "medium heat"
+    return "high heat"
+
+
+def _humanize(text: str) -> str:
+    """Make step text speakable: no raw temperatures, units, or fractions.
+
+    TTS reads '180C/160C fan/gas 4' as digits — turn numbers into everyday
+    words (high flame, a few minutes, some, half) instead.
+    """
+    t = text
+    # Oven/hob temperature clusters -> low/medium/high heat
+    t = re.sub(
+        r"\d{2,3}\s*°?\s*C(?:\s*/\s*\d{2,3}\s*°?\s*C\s*fan)?(?:\s*/?\s*gas(?:\s*mark)?\s*\d+)?",
+        lambda m: _flame_word(int(re.match(r"\d+", m.group(0)).group(0))),
+        t,
+        flags=re.IGNORECASE,
+    )
+    t = re.sub(
+        r"\d{3}\s*°?\s*F\b",
+        lambda m: _flame_word(round((int(re.match(r"\d+", m.group(0)).group(0)) - 32) / 1.8)),
+        t,
+    )
+    t = re.sub(r"\bgas(?:\s*mark)?\s*\d+\b", "medium heat", t, flags=re.IGNORECASE)
+    # Times -> casual
+    t = re.sub(r"\d+\s*(?:[-–]|to)\s*\d+\s*(?:mins?|minutes)\b", "a few minutes", t, flags=re.IGNORECASE)
+    t = re.sub(r"\d+\s*(?:mins?|minutes)\b", "a few minutes", t, flags=re.IGNORECASE)
+    t = re.sub(r"\d+\s*(?:hrs?|hours?)\b", "about an hour", t, flags=re.IGNORECASE)
+    # Fractions and measurements -> words
+    t = t.replace("1/2", "half").replace("1/4", "a quarter").replace("3/4", "three quarters")
+    t = re.sub(r"\d+(?:\.\d+)?\s*(?:kg|g|ml|l|litres?|liters?)\b", "some", t, flags=re.IGNORECASE)
+    t = re.sub(r"\d+\s*(?:tbsps?|tsps?|tablespoons?|teaspoons?|cups?)\b", "some", t, flags=re.IGNORECASE)
+    return re.sub(r"\s{2,}", " ", t)
+
+
+DANGLING = {"for", "with", "the", "a", "an", "and", "to", "of", "in", "on", "at", "or", "until", "till"}
+
+
 def _step_fragment(step: str, max_words: int = 10) -> str:
-    words = step.split()
-    frag = " ".join(words[:max_words]).rstrip(".,;: ")
+    words = _humanize(step).split()[:max_words]
+    while words and words[-1].lower().rstrip(".,;:") in DANGLING:
+        words.pop()
+    frag = " ".join(words).rstrip(".,;: ")
     return frag[0].lower() + frag[1:] if frag else ""
 
 
