@@ -19,30 +19,52 @@ SARVAM_SPEAKER = os.environ.get("SARVAM_SPEAKER", "shreya")
 EDGE_VOICE_EN = "en-IN-NeerjaNeural"
 
 HOOKS = [
-    "Craving something new today?",
-    "Here is a dish you have to try!",
-    "Tonight's dinner idea, sorted.",
-    "One recipe, endless compliments!",
-    "This dish takes just a few steps!",
+    "Guys, you have to try this one!",
+    "Okay so, dinner problem solved for today!",
+    "Wait till you see how easy this is!",
+    "This one is a total crowd pleaser!",
+    "Trust me, you will make this again and again!",
 ]
 
 
+def _step_fragment(step: str, max_words: int = 10) -> str:
+    words = step.split()
+    frag = " ".join(words[:max_words]).rstrip(".,;: ")
+    return frag[0].lower() + frag[1:] if frag else ""
+
+
 def build_script(recipe: dict, handle: str) -> str:
-    """A short spoken script (~60-80 words, roughly 25 seconds)."""
+    """Casual spoken script (~120 words, roughly 40-45 seconds).
+
+    Written in simple conversational English; Sarvam's code-mixed mode
+    turns it into natural everyday Telugu with English words kept in.
+    """
     hook = HOOKS[int(recipe["id"]) % len(HOOKS)]
     name = recipe["name"]
     n_ing = len(recipe["ingredients"])
     key_ing = ", ".join(i["name"] for i in recipe["ingredients"][:3])
-    n_steps = len(recipe["steps"])
-    area = recipe["area"] or "world"
-    return (
-        f"{hook} Today's recipe of the day is {name}, "
-        f"a delicious {area} dish. "
-        f"You need just {n_ing} ingredients, including {key_ing}. "
-        f"It comes together in {n_steps} simple steps. "
-        f"The full ingredients and method are in the caption below. "
-        f"Follow us for a new recipe every day!"
-    )
+    steps = recipe["steps"]
+    picks = [steps[0]]
+    if len(steps) > 2:
+        picks.append(steps[len(steps) // 2])
+    if len(steps) > 1:
+        picks.append(steps[-1])
+    frags = [_step_fragment(s) for s in picks]
+
+    lines = [
+        f"{hook} Today we are making {name}.",
+        f"You just need {n_ing} simple ingredients — the main ones are {key_ing}.",
+        f"First, {frags[0]}.",
+    ]
+    if len(frags) == 3:
+        lines.append(f"Then, {frags[1]}.")
+    lines.append(f"And finally, {frags[-1]}. That's it, done!")
+    lines += [
+        "It looks so good, right? The full recipe is there in the caption.",
+        "Try it today and tell me how it turned out!",
+        "And follow for one tasty new recipe every single day!",
+    ]
+    return " ".join(lines)
 
 
 def _sarvam_headers(key: str) -> dict:
@@ -50,8 +72,14 @@ def _sarvam_headers(key: str) -> dict:
 
 
 def translate_to_telugu(text: str, key: str) -> str:
+    """Conversational code-mixed Telugu (everyday speech, not literary)."""
     last_err = None
-    for model in ("sarvam-translate:v1", "mayura:v1"):
+    attempts = [
+        {"model": "mayura:v1", "mode": "code-mixed"},
+        {"model": "mayura:v1", "mode": "modern-colloquial"},
+        {"model": "sarvam-translate:v1"},
+    ]
+    for extra in attempts:
         resp = requests.post(
             f"{SARVAM_BASE}/translate",
             headers=_sarvam_headers(key),
@@ -59,7 +87,7 @@ def translate_to_telugu(text: str, key: str) -> str:
                 "input": text,
                 "source_language_code": "en-IN",
                 "target_language_code": "te-IN",
-                "model": model,
+                **extra,
             },
             timeout=60,
         )

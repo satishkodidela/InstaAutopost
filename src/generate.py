@@ -24,7 +24,6 @@ from zoneinfo import ZoneInfo
 from ai_reel import make_ai_reel
 from card import make_cover, make_follow_card, make_ingredients_card, make_steps_cards
 from recipe import download_photo, fetch_recipe
-from reel import build_reel
 from voiceover import make_voiceover
 
 MAX_STEP_CARDS = 3
@@ -130,24 +129,21 @@ def main() -> None:
             if vo is not None:
                 vo_path, vo_lang = vo
 
-            reel_kind = "slideshow"
-            if os.environ.get("KIE_API_KEY"):
-                try:
-                    print("Generating AI video clips via Kie.ai (Seedance)...")
-                    # Cards after the cover (the AI clip replaces the cover)
-                    content_cards = [
-                        posts_dir / f"{date_str}-{n}.jpg" for n in range(2, total_pages + 1)
-                    ]
-                    make_ai_reel(recipe, HANDLE, content_cards, video_path, vo_path, music)
-                    reel_kind = "ai"
-                except Exception as exc:
-                    print(f"AI reel failed, falling back to slideshow: {exc}", file=sys.stderr)
-
-            if reel_kind == "slideshow":
-                card_paths = [
-                    posts_dir / f"{date_str}-{n}.jpg" for n in range(1, total_pages + 1)
-                ]
-                build_reel(card_paths, photo, video_path, music, vo_path)
+            try:
+                if not os.environ.get("KIE_API_KEY"):
+                    raise RuntimeError("KIE_API_KEY not set")
+                print("Generating AI shot reel via Kie.ai (Seedance)...", flush=True)
+                make_ai_reel(recipe, HANDLE, video_path, vo_path, music)
+                reel_kind = "ai"
+            except Exception as exc:
+                # No card-slideshow fallback (rejected by account owner) —
+                # post the carousel instead so the day never goes empty.
+                print(f"AI reel unavailable, posting carousel instead: {exc}", file=sys.stderr)
+                fmt = "carousel"
+                reel_kind = None
+                music = None
+                vo_lang = None
+                video_path.unlink(missing_ok=True)
     else:
         # A leftover video from an earlier run today would make publish.py
         # post a reel instead of the carousel
