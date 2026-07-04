@@ -1,11 +1,18 @@
 # InstaAutopost — Recipe of the Day on Instagram
 
-Automatically posts a daily recipe to Instagram at **8:00 AM IST** using
-GitHub Actions and the official Instagram Graph API. Each day it randomly
-posts either an image **carousel** (dish photo cover, ingredients, method
-cards, follow CTA) or a **Reel** — a 1080×1920 slideshow of the same cards
-over a blurred dish-photo background, with royalty-free music from
-`assets/music/`.
+Automatically posts a daily recipe to Instagram at **7:30 PM IST** (evening
+peak for Indian audiences) using GitHub Actions and the official Instagram
+Graph API. Each day it randomly posts either an image **carousel** (dish
+photo cover, ingredients, method cards, follow CTA) or a **Reel** —
+1080×1920 with background music and a voiceover.
+
+Reels have two quality tiers, selected automatically by which API keys are
+configured:
+
+| Feature | Without keys (free) | With keys |
+|---|---|---|
+| Video | Card slideshow over blurred dish photo | AI-generated food clips (Seedance via Kie.ai, ~$9–20/mo) |
+| Voiceover | English (free edge-tts) | Telugu (Sarvam AI Bulbul v3, ~₹90/mo) |
 
 ## How it works
 
@@ -47,6 +54,10 @@ account. This is free and required — personal accounts cannot use the API.
 2. In the repo: **Settings → Secrets and variables → Actions**, add:
    - `IG_USER_ID` — your Instagram user ID
    - `IG_ACCESS_TOKEN` — the long-lived access token
+   - `KIE_API_KEY` *(optional)* — from kie.ai, enables AI-video reels
+     (Seedance 1.0 Lite; top up credits, ~$0.30-0.70/reel)
+   - `SARVAM_API_KEY` *(optional)* — from dashboard.sarvam.ai, enables
+     Telugu voiceover (free starting credits, then ~₹30/10k characters)
 3. (Optional, for automatic token renewal) add `GH_PAT` — a GitHub personal
    access token with permission to write repo secrets. The monthly
    `refresh-token.yml` workflow then keeps `IG_ACCESS_TOKEN` fresh forever.

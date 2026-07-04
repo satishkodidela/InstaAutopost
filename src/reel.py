@@ -46,6 +46,7 @@ def build_reel(
     photo: bytes,
     out_path: Path,
     music_path: Path | None = None,
+    voiceover_path: Path | None = None,
 ) -> None:
     bg = _background(photo)
 
@@ -73,23 +74,45 @@ def build_reel(
         concat_file.write_text("\n".join(concat_lines))
 
         cmd = [_ffmpeg(), "-y", "-f", "concat", "-safe", "0", "-i", str(concat_file)]
+        filters = [f"[0:v]fps={FPS},format=yuv420p[vout]"]
+        mix_inputs = []
+        idx = 1
+        if voiceover_path is not None:
+            cmd += ["-i", str(voiceover_path)]
+            filters.append(f"[{idx}:a]adelay=600|600,apad[vo]")
+            mix_inputs.append("[vo]")
+            idx += 1
         if music_path is not None:
             cmd += ["-stream_loop", "-1", "-i", str(music_path)]
+            vol = 0.12 if voiceover_path is not None else 1.0
+            filters.append(f"[{idx}:a]volume={vol}[mu]")
+            mix_inputs.append("[mu]")
+            idx += 1
+
+        maps = ["-map", "[vout]"]
+        if mix_inputs:
+            if len(mix_inputs) == 1:
+                filters.append(f"{mix_inputs[0]}anull[amixed]")
+            else:
+                filters.append(
+                    f"{''.join(mix_inputs)}amix=inputs={len(mix_inputs)}:"
+                    f"duration=first:dropout_transition=0[amixed]"
+                )
+            filters.append(
+                f"[amixed]afade=t=out:st={max(total - 1.5, 0)}:d=1.5[aout]"
+            )
+            maps += ["-map", "[aout]", "-c:a", "aac", "-b:a", "192k"]
+
         cmd += [
+            "-filter_complex", ";".join(filters),
+            *maps,
             "-t", str(total),
-            "-vf", f"fps={FPS},format=yuv420p",
             "-c:v", "libx264",
             "-preset", "medium",
             "-crf", "20",
             "-r", str(FPS),
+            "-movflags", "+faststart",
+            str(out_path),
         ]
-        if music_path is not None:
-            cmd += [
-                "-c:a", "aac",
-                "-b:a", "192k",
-                "-af", f"afade=t=out:st={max(total - 1.5, 0)}:d=1.5",
-                "-shortest",
-            ]
-        cmd += ["-movflags", "+faststart", str(out_path)]
 
         subprocess.run(cmd, check=True, capture_output=True, text=True)

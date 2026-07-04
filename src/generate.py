@@ -16,13 +16,16 @@ import json
 import os
 import random
 import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from ai_reel import make_ai_reel
 from card import make_cover, make_follow_card, make_ingredients_card, make_steps_cards
 from recipe import download_photo, fetch_recipe
 from reel import build_reel
+from voiceover import make_voiceover
 
 MAX_STEP_CARDS = 3
 HANDLE = "roadside_mobile"
@@ -114,10 +117,32 @@ def main() -> None:
         fmt = "reel" if random.random() < REEL_PROBABILITY else "carousel"
 
     music = None
+    vo_lang = None
+    reel_kind = None
     if fmt == "reel":
         music = pick_music(root)
-        card_paths = [posts_dir / f"{date_str}-{n}.jpg" for n in range(1, total_pages + 1)]
-        build_reel(card_paths, photo, posts_dir / f"{date_str}.mp4", music)
+        video_path = posts_dir / f"{date_str}.mp4"
+
+        with tempfile.TemporaryDirectory() as work:
+            vo = make_voiceover(recipe, HANDLE, Path(work))
+            vo_path = None
+            if vo is not None:
+                vo_path, vo_lang = vo
+
+            reel_kind = "slideshow"
+            if os.environ.get("KIE_API_KEY"):
+                try:
+                    print("Generating AI video clips via Kie.ai (Seedance)...")
+                    make_ai_reel(recipe, HANDLE, video_path, vo_path, music)
+                    reel_kind = "ai"
+                except Exception as exc:
+                    print(f"AI reel failed, falling back to slideshow: {exc}", file=sys.stderr)
+
+            if reel_kind == "slideshow":
+                card_paths = [
+                    posts_dir / f"{date_str}-{n}.jpg" for n in range(1, total_pages + 1)
+                ]
+                build_reel(card_paths, photo, video_path, music, vo_path)
     else:
         # A leftover video from an earlier run today would make publish.py
         # post a reel instead of the carousel
@@ -130,9 +155,12 @@ def main() -> None:
     posted.append(recipe["id"])
     posted_path.write_text(json.dumps(posted, indent=0) + "\n")
 
-    print(f"Generated {total_pages} cards for: {recipe['name']} [{fmt}]")
+    fmt_label = f"{fmt}:{reel_kind}" if reel_kind else fmt
+    print(f"Generated {total_pages} cards for: {recipe['name']} [{fmt_label}]")
     print(f"  Cuisine: {recipe['area']} | Category: {recipe['category']}")
     print(f"  {len(recipe['ingredients'])} ingredients, {len(recipe['steps'])} steps")
+    if vo_lang is not None:
+        print(f"  Voiceover: {vo_lang}")
     if music is not None:
         print(f"  Music: {music.name}")
 

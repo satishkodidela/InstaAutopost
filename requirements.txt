@@ -2,3 +2,4 @@ feedparser>=6.0.11
 requests>=2.32
 Pillow>=10.4
 imageio-ffmpeg>=0.5
+edge-tts>=7.0
