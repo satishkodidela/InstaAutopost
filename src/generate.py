@@ -11,10 +11,11 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from card import make_cover, make_ingredients_card, make_steps_cards
+from card import make_cover, make_follow_card, make_ingredients_card, make_steps_cards
 from recipe import download_photo, fetch_recipe
 
 MAX_STEP_CARDS = 3
+HANDLE = "roadside_mobile"
 
 HASHTAGS = (
     "#RecipeOfTheDay #Foodie #HomeCooking #EasyRecipes #FoodLovers "
@@ -35,6 +36,7 @@ def build_caption(recipe: dict, date_label: str) -> str:
     lines += [f"{i}. {step}" for i, step in enumerate(recipe["steps"], start=1)]
     if recipe.get("youtube"):
         lines += ["", f"🎥 Video: {recipe['youtube']}"]
+    lines += ["", f"Follow @{HANDLE} for a new recipe every morning! 🔔"]
     lines += ["", "Recipe data: TheMealDB", "", HASHTAGS]
 
     caption = "\n".join(lines)
@@ -71,11 +73,17 @@ def main() -> None:
     step_paths = [
         str(posts_dir / f"{date_str}-{3 + i}.jpg") for i in range(MAX_STEP_CARDS)
     ]
-    step_cards = make_steps_cards(recipe, first_page=2, out_paths=step_paths)
-    total_pages = 2 + step_cards
+    step_cards = make_steps_cards(recipe, first_page=2, out_paths=step_paths, extra_pages=1)
+    total_pages = 2 + step_cards + 1
 
     make_cover(photo, recipe, total_pages, str(posts_dir / f"{date_str}-1.jpg"))
     make_ingredients_card(recipe, 1, total_pages, str(posts_dir / f"{date_str}-2.jpg"))
+    make_follow_card(
+        HANDLE,
+        total_pages - 1,
+        total_pages,
+        str(posts_dir / f"{date_str}-{total_pages}.jpg"),
+    )
 
     (posts_dir / f"{date_str}.txt").write_text(
         build_caption(recipe, date_label), encoding="utf-8"

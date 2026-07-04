@@ -2,7 +2,7 @@
 
 import io
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 WIDTH, HEIGHT = 1080, 1350
 MARGIN = 80
@@ -98,6 +98,8 @@ def make_cover(photo: bytes, recipe: dict, total_pages: int, out_path: str) -> N
     dish = dish.crop((left, top, left + side, top + side)).resize(
         (WIDTH, WIDTH), Image.LANCZOS
     )
+    # Source photos are ~700px; sharpen after upscaling to keep them crisp
+    dish = dish.filter(ImageFilter.UnsharpMask(radius=2, percent=120, threshold=2))
     img.paste(dish, (0, 0))
 
     name_font = _font(FONT_CANDIDATES_BOLD, 54)
@@ -117,7 +119,7 @@ def make_cover(photo: bytes, recipe: dict, total_pages: int, out_path: str) -> N
         draw.text(((WIDTH - mw) / 2, y + 8), meta, font=meta_font, fill=ACCENT)
 
     _footer(draw, 0, total_pages, dark_bg=True, y=HEIGHT - 42)
-    img.save(out_path, "JPEG", quality=90)
+    img.save(out_path, "JPEG", quality=95, subsampling=0)
 
 
 def make_ingredients_card(recipe: dict, page: int, total_pages: int, out_path: str) -> None:
@@ -146,16 +148,18 @@ def make_ingredients_card(recipe: dict, page: int, total_pages: int, out_path: s
         draw.text((x + 28, yy), line, font=item_font, fill=DARK)
 
     _footer(draw, page, total_pages)
-    img.save(out_path, "JPEG", quality=90)
+    img.save(out_path, "JPEG", quality=95, subsampling=0)
 
 
 def make_steps_cards(
-    recipe: dict, first_page: int, out_paths: list[str]
+    recipe: dict, first_page: int, out_paths: list[str], extra_pages: int = 0
 ) -> int:
     """Render instruction cards, filling as many of `out_paths` as needed.
 
-    Returns the number of cards written. Steps that don't fit on the
-    last card are dropped with a "full recipe in caption" note.
+    `extra_pages` is how many cards follow these in the carousel (so the
+    page dots show the true total). Returns the number of cards written.
+    Steps that don't fit on the last card are dropped with a "full recipe
+    in caption" note.
     """
     step_font = _font(FONT_CANDIDATES_REGULAR, 34)
     num_font = _font(FONT_CANDIDATES_BOLD, 38)
@@ -186,7 +190,7 @@ def make_steps_cards(
         y += height
 
     shown = sum(len(c) for c in cards)
-    total_pages = first_page + len(cards)
+    total_pages = first_page + len(cards) + extra_pages
 
     for card_idx, step_indices in enumerate(cards):
         header = "Method" if len(cards) == 1 else f"Method ({card_idx + 1}/{len(cards)})"
@@ -202,6 +206,33 @@ def make_steps_cards(
             nw = draw.textlength(note, font=note_font)
             draw.text(((WIDTH - nw) / 2, HEIGHT - 110), note, font=note_font, fill=MUTED)
         _footer(draw, first_page + card_idx, total_pages)
-        img.save(out_paths[card_idx], "JPEG", quality=90)
+        img.save(out_paths[card_idx], "JPEG", quality=95, subsampling=0)
 
     return len(cards)
+
+
+def make_follow_card(handle: str, page: int, total_pages: int, out_path: str) -> None:
+    img = Image.new("RGB", (WIDTH, HEIGHT), BAND)
+    draw = ImageDraw.Draw(img)
+    draw.rectangle([0, 0, WIDTH, 14], fill=ACCENT)
+
+    ask_font = _font(FONT_CANDIDATES_BOLD, 46)
+    follow_font = _font(FONT_CANDIDATES_BOLD, 96)
+    handle_font = _font(FONT_CANDIDATES_BOLD, 56)
+    sub_font = _font(FONT_CANDIDATES_REGULAR, 34)
+    cta_font = _font(FONT_CANDIDATES_BOLD, 34)
+
+    def centered(text, font, y, fill):
+        w = draw.textlength(text, font=font)
+        draw.text(((WIDTH - w) / 2, y), text, font=font, fill=fill)
+
+    centered("Enjoyed today's recipe?", ask_font, 380, CREAM)
+    centered("FOLLOW", follow_font, 520, ACCENT)
+    centered(f"@{handle}", handle_font, 650, CREAM)
+    centered("for a new recipe every morning", sub_font, 760, (200, 180, 160))
+
+    draw.line([(MARGIN + 160, 900), (WIDTH - MARGIN - 160, 900)], fill=(90, 70, 55), width=2)
+    centered("Like  •  Save  •  Share with a foodie", cta_font, 950, ACCENT)
+
+    _footer(draw, page, total_pages, dark_bg=True)
+    img.save(out_path, "JPEG", quality=95, subsampling=0)
