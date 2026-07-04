@@ -186,12 +186,18 @@ def generate_clips(prompts: list[str], ref_image: str | None, key: str, out_dir:
     return paths
 
 
-def _overlay_png(lines_top: list[str], lines_bottom: list[str], out_path: Path) -> None:
+def _overlay_png(
+    lines_top: list[str],
+    lines_bottom: list[str],
+    out_path: Path,
+    bottom_size: int = 46,
+) -> None:
     """Transparent overlay; text kept inside IG safe zones."""
     img = Image.new("RGBA", (REEL_W, REEL_H), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     top_font = _font(FONT_CANDIDATES_BOLD, 64)
-    bottom_font = _font(FONT_CANDIDATES_BOLD, 46)
+    bottom_font = _font(FONT_CANDIDATES_BOLD, bottom_size)
+    line_h = bottom_size + 22
 
     scratch = ImageDraw.Draw(Image.new("RGB", (1, 1)))
     top_wrapped = [
@@ -211,15 +217,17 @@ def _overlay_png(lines_top: list[str], lines_bottom: list[str], out_path: Path) 
         draw.text((x, y), line, font=top_font, fill=(255, 255, 255, 255))
         y += 88
 
-    y = REEL_H - SAFE_BOTTOM - len(bottom_wrapped) * 68
+    y = REEL_H - SAFE_BOTTOM - len(bottom_wrapped) * line_h
     for line in bottom_wrapped:
         w = draw.textlength(line, font=bottom_font)
         x = (REEL_W - w) / 2
         draw.rounded_rectangle(
-            [x - 20, y - 8, x + w + 20, y + 54], radius=14, fill=ACCENT + (230,)
+            [x - 20, y - 8, x + w + 20, y + bottom_size + 8],
+            radius=14,
+            fill=ACCENT + (230,),
         )
         draw.text((x, y), line, font=bottom_font, fill=(255, 255, 255, 255))
-        y += 68
+        y += line_h
     img.save(out_path, "PNG")
 
 
@@ -239,9 +247,11 @@ def assemble_reel(
     ff = _ffmpeg()
     n_ing = len(recipe["ingredients"])
     hook_text = recipe.get("hook") or f"Only {n_ing} ingredients!"
-    key_ing = [i["name"] for i in recipe["ingredients"][:6]]
+    # Show ALL ingredients (owner feedback: no "+N more" teasing); only
+    # spill to the caption past 12 to stay inside the safe zone
+    key_ing = [i["name"] for i in recipe["ingredients"][:12]]
     if n_ing > len(key_ing):
-        key_ing.append(f"+ {n_ing - len(key_ing)} more")
+        key_ing.append(f"+ {n_ing - len(key_ing)} in caption")
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_dir = Path(tmp)
@@ -251,7 +261,7 @@ def assemble_reel(
         ov_hook = tmp_dir / "ov_hook.png"
         _overlay_png([hook_text], [recipe["name"]], ov_hook)
         ov_ing = tmp_dir / "ov_ing.png"
-        _overlay_png(["What you need:"], key_ing, ov_ing)
+        _overlay_png(["What you need:"], key_ing, ov_ing, bottom_size=40)
         ov_follow = tmp_dir / "ov_follow.png"
         _overlay_png([], [f"Follow @{handle} for daily recipes"], ov_follow)
 
