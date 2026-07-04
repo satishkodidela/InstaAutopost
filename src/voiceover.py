@@ -136,7 +136,7 @@ def translate_to_telugu(text: str, key: str) -> str:
     raise RuntimeError(f"Sarvam translate failed: {last_err}")
 
 
-def tts_sarvam_telugu(text: str, key: str, out_path: Path) -> None:
+def tts_sarvam_telugu(text: str, key: str, out_path: Path, pace: float = 1.0) -> None:
     resp = requests.post(
         f"{SARVAM_BASE}/text-to-speech",
         headers=_sarvam_headers(key),
@@ -146,6 +146,7 @@ def tts_sarvam_telugu(text: str, key: str, out_path: Path) -> None:
             "model": "bulbul:v3",
             "speaker": SARVAM_SPEAKER,
             "speech_sample_rate": 44100,
+            "pace": pace,
         },
         timeout=120,
     )
@@ -153,6 +154,22 @@ def tts_sarvam_telugu(text: str, key: str, out_path: Path) -> None:
         raise RuntimeError(f"Sarvam TTS failed: {resp.text}")
     audio_b64 = resp.json()["audios"][0]
     out_path.write_bytes(base64.b64decode(audio_b64))
+
+
+def audio_duration(path: Path) -> float:
+    import shutil
+    import subprocess
+
+    ff = shutil.which("ffmpeg")
+    if not ff:
+        import imageio_ffmpeg
+
+        ff = imageio_ffmpeg.get_ffmpeg_exe()
+    probe = subprocess.run([ff, "-i", str(path)], capture_output=True, text=True)
+    m = re.search(r"Duration: (\d+):(\d+):([\d.]+)", probe.stderr)
+    if not m:
+        return 0.0
+    return float(m.group(1)) * 3600 + float(m.group(2)) * 60 + float(m.group(3))
 
 
 def tts_edge(text: str, voice: str, out_path: Path) -> None:
@@ -164,11 +181,15 @@ def tts_edge(text: str, voice: str, out_path: Path) -> None:
     asyncio.run(_run())
 
 
-def make_voiceover(recipe: dict, handle: str, out_dir: Path) -> tuple[Path, str] | None:
+def make_voiceover(
+    recipe: dict, handle: str, out_dir: Path, target_seconds: float | None = None
+) -> tuple[Path, str] | None:
     """Create the voiceover audio. Returns (path, language) or None.
 
     Telugu via Sarvam when SARVAM_API_KEY is set; otherwise (or on
     failure) English via free edge-tts; None if everything fails.
+    If target_seconds is given and the audio runs longer, it is
+    regenerated at a faster pace so it never outlives the video.
     """
     script = build_script(recipe, handle)
     sarvam_key = os.environ.get("SARVAM_API_KEY")
@@ -178,6 +199,12 @@ def make_voiceover(recipe: dict, handle: str, out_dir: Path) -> tuple[Path, str]
             telugu = translate_to_telugu(script, sarvam_key)
             path = out_dir / "voiceover.wav"
             tts_sarvam_telugu(telugu, sarvam_key, path)
+            if target_seconds:
+                dur = audio_duration(path)
+                if dur > target_seconds:
+                    pace = round(min(1.5, dur / target_seconds + 0.05), 2)
+                    print(f"  Voiceover {dur:.1f}s > {target_seconds:.0f}s target; retrying at pace {pace}")
+                    tts_sarvam_telugu(telugu, sarvam_key, path, pace=pace)
             return path, "te"
         except Exception as exc:
             print(f"Sarvam voiceover failed, falling back to edge-tts: {exc}", file=sys.stderr)
@@ -185,6 +212,17 @@ def make_voiceover(recipe: dict, handle: str, out_dir: Path) -> tuple[Path, str]
     try:
         path = out_dir / "voiceover.mp3"
         tts_edge(script, EDGE_VOICE_EN, path)
+        if target_seconds:
+            dur = audio_duration(path)
+            if dur > target_seconds:
+                import edge_tts  # rate bump re-render
+
+                rate = f"+{min(50, int((dur / target_seconds - 1) * 100) + 5)}%"
+
+                async def _run() -> None:
+                    await edge_tts.Communicate(script, EDGE_VOICE_EN, rate=rate).save(str(path))
+
+                asyncio.run(_run())
         return path, "en"
     except Exception as exc:
         print(f"edge-tts voiceover failed, reel will use music only: {exc}", file=sys.stderr)

@@ -99,11 +99,16 @@ def build_generation_prompts(recipe: dict, n_gens: int) -> list[str]:
     ing_list = ", ".join(i["name"] for i in recipe["ingredients"][:6])
     steps = recipe["steps"]
 
-    # Action beats from evenly-sampled recipe steps (used in the middle)
+    # Action beats from evenly-sampled recipe steps (used in the middle).
+    # Each names its key ingredient and reuses the same bowls/setting so the
+    # process visibly USES what the ingredients shot showed.
     n_action = max(1, n_gens * BEATS_PER_GEN - 5)
     stride = max(1, len(steps) // n_action)
     actions = [
-        f"hands entering from frame edge, {_action_fragment(steps[min(i * stride, len(steps) - 1)])}, one precise action"
+        (
+            f"hands entering from frame edge, {_action_fragment(steps[min(i * stride, len(steps) - 1)])}, "
+            f"using the same ingredients and brass bowls from the earlier shot, one precise action"
+        )
         for i in range(n_action)
     ]
 
@@ -112,10 +117,11 @@ def build_generation_prompts(recipe: dict, n_gens: int) -> list[str]:
         f"steam rising, a spoon lifting one portion, glossy texture. Camera: slow push-in."
     )
     ingredients = (
-        f"Overhead shot of fresh ingredients for {name} on the dark wood "
-        f"counter: {ing_list}. Camera: fixed."
+        f"Overhead shot of the exact ingredients for {name} in small brass "
+        f"bowls on the dark wood counter: {ing_list} — these same ingredients "
+        f"are used in the following cooking shots. Camera: fixed."
     )
-    sizzle = f"{_pick_hook_beat(steps)}, making {name}. Camera: fixed."
+    sizzle = f"{_pick_hook_beat(steps)}, making {name}, continuing the same cooking process. Camera: fixed."
     loop_close = (
         f"The finished {name} exactly as @image1, same framing as the opening "
         f"shot, steam rising, garnished. Camera: slow push-in."

@@ -268,7 +268,12 @@ def main() -> None:
         video_path = posts_dir / f"{date_str}.mp4"
 
         with tempfile.TemporaryDirectory() as work:
-            vo = make_voiceover(recipe, HANDLE, Path(work))
+            # VO must fit inside the video with room for the delay + fade
+            from ai_reel import GEN_SECONDS, TARGET_SECONDS
+
+            n_gens = max(1, round(TARGET_SECONDS / GEN_SECONDS))
+            vo_budget = n_gens * GEN_SECONDS - 2.0
+            vo = make_voiceover(recipe, HANDLE, Path(work), target_seconds=vo_budget)
             vo_path = None
             if vo is not None:
                 vo_path, vo_lang = vo
