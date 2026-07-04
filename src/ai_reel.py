@@ -57,7 +57,10 @@ def _headers(key: str) -> dict:
 
 def get_credits(key: str) -> float:
     resp = requests.get(f"{KIE_BASE}/chat/credit", headers=_headers(key), timeout=30)
-    return float(resp.json().get("data") or 0)
+    body = resp.json()
+    if body.get("code") != 200 or body.get("data") is None:
+        raise RuntimeError(f"Kie.ai credit check failed: {body}")
+    return float(body["data"])
 
 
 def _action_fragment(step: str, max_words: int = 14) -> str:

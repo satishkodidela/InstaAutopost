@@ -5,6 +5,11 @@ on:
     # 7:30 PM IST (2:00 PM UTC) every day — evening peak for Indian audiences
     - cron: "0 14 * * *"
   workflow_dispatch:
+    inputs:
+      format:
+        description: "Force post format (reel or carousel); empty = random"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -26,7 +31,8 @@ jobs:
         env:
           KIE_API_KEY: ${{ secrets.KIE_API_KEY }}
           SARVAM_API_KEY: ${{ secrets.SARVAM_API_KEY }}
-        run: python src/generate.py
+          POST_FORMAT: ${{ inputs.format }}
+        run: python -u src/generate.py
 
       - name: Commit and push the image (Instagram needs a public URL)
         run: |
