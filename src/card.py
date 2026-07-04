@@ -1,17 +1,17 @@
-"""Render the daily news carousel cards as 1080x1350 JPEGs."""
+"""Render the daily recipe carousel cards as 1080x1350 JPEGs."""
+
+import io
 
 from PIL import Image, ImageDraw, ImageFont
 
 WIDTH, HEIGHT = 1080, 1350
-MARGIN = 70
+MARGIN = 80
 
-BG_TOP = (13, 22, 38)
-BG_BOTTOM = (24, 42, 72)
-ACCENT_SAFFRON = (255, 153, 51)
-ACCENT_GREEN = (19, 136, 8)
-TEXT_WHITE = (245, 247, 250)
-TEXT_MUTED = (150, 165, 185)
-TEXT_SUMMARY = (196, 207, 222)
+CREAM = (251, 243, 231)
+DARK = (46, 31, 20)
+ACCENT = (232, 93, 38)
+MUTED = (138, 117, 99)
+BAND = (36, 24, 16)
 
 FONT_CANDIDATES_BOLD = [
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",  # GitHub Actions (ubuntu)
@@ -50,121 +50,158 @@ def _wrap(draw: ImageDraw.ImageDraw, text: str, font, max_width: int) -> list[st
     return lines
 
 
-def _wrap_ellipsis(draw, text, font, max_width, max_lines):
-    lines = _wrap(draw, text, font, max_width)
-    if len(lines) > max_lines:
-        lines = lines[:max_lines]
-        lines[-1] = lines[-1].rstrip(".,;: ") + "…"
-    return lines
-
-
-def _new_canvas() -> tuple[Image.Image, ImageDraw.ImageDraw]:
-    img = Image.new("RGB", (WIDTH, HEIGHT))
+def _text_card_canvas(header: str) -> tuple[Image.Image, ImageDraw.ImageDraw, int]:
+    """Cream card with the accent strip and a section header. Returns start y."""
+    img = Image.new("RGB", (WIDTH, HEIGHT), CREAM)
     draw = ImageDraw.Draw(img)
+    draw.rectangle([0, 0, WIDTH, 14], fill=ACCENT)
 
-    # Vertical gradient background
-    for y in range(HEIGHT):
-        t = y / HEIGHT
-        color = tuple(int(a + (b - a) * t) for a, b in zip(BG_TOP, BG_BOTTOM))
-        draw.line([(0, y), (WIDTH, y)], fill=color)
+    brand_font = _font(FONT_CANDIDATES_BOLD, 34)
+    header_font = _font(FONT_CANDIDATES_BOLD, 58)
 
-    # Tricolor top strip
-    strip_h = 14
-    draw.rectangle([0, 0, WIDTH // 3, strip_h], fill=ACCENT_SAFFRON)
-    draw.rectangle([WIDTH // 3, 0, 2 * WIDTH // 3, strip_h], fill=TEXT_WHITE)
-    draw.rectangle([2 * WIDTH // 3, 0, WIDTH, strip_h], fill=ACCENT_GREEN)
-    return img, draw
+    y = 70
+    draw.text((MARGIN, y), "DAILY RECIPE", font=brand_font, fill=ACCENT)
+    y += 62
+    draw.text((MARGIN, y), header, font=header_font, fill=DARK)
+    y += 78
+    draw.line([(MARGIN, y), (WIDTH - MARGIN, y)], fill=(216, 198, 178), width=3)
+    return img, draw, y + 50
 
 
-def _footer(draw: ImageDraw.ImageDraw, page: int, total: int) -> None:
-    font = _font(FONT_CANDIDATES_REGULAR, 28)
-    text = "Sources: TOI, The Hindu, NDTV, Indian Express"
-    fw = draw.textlength(text, font=font)
-    draw.text(((WIDTH - fw) / 2, HEIGHT - 70), text, font=font, fill=TEXT_MUTED)
-
-    # Page dots
+def _footer(
+    draw: ImageDraw.ImageDraw,
+    page: int,
+    total: int,
+    dark_bg: bool = False,
+    y: int = HEIGHT - 60,
+) -> None:
     dot_r, gap = 7, 30
-    total_w = (total - 1) * gap
-    x0 = (WIDTH - total_w) / 2
+    x0 = (WIDTH - (total - 1) * gap) / 2
+    inactive = (90, 70, 55) if dark_bg else (216, 198, 178)
     for i in range(total):
         cx = x0 + i * gap
-        color = ACCENT_SAFFRON if i == page else (70, 88, 115)
-        draw.ellipse([cx - dot_r, HEIGHT - 120 - dot_r, cx + dot_r, HEIGHT - 120 + dot_r], fill=color)
+        draw.ellipse(
+            [cx - dot_r, y - dot_r, cx + dot_r, y + dot_r],
+            fill=ACCENT if i == page else inactive,
+        )
 
 
-def make_cover(headlines: list[dict], date_label: str, total_pages: int, out_path: str) -> None:
-    img, draw = _new_canvas()
+def make_cover(photo: bytes, recipe: dict, total_pages: int, out_path: str) -> None:
+    img = Image.new("RGB", (WIDTH, HEIGHT), BAND)
+    draw = ImageDraw.Draw(img)
 
-    title_font = _font(FONT_CANDIDATES_BOLD, 96)
-    date_font = _font(FONT_CANDIDATES_REGULAR, 40)
-    teaser_font = _font(FONT_CANDIDATES_BOLD, 38)
-    swipe_font = _font(FONT_CANDIDATES_BOLD, 36)
+    # Dish photo: square, full width, top of the card
+    dish = Image.open(io.BytesIO(photo)).convert("RGB")
+    side = min(dish.size)
+    left = (dish.width - side) // 2
+    top = (dish.height - side) // 2
+    dish = dish.crop((left, top, left + side, top + side)).resize(
+        (WIDTH, WIDTH), Image.LANCZOS
+    )
+    img.paste(dish, (0, 0))
 
-    y = 190
-    for word in ("INDIA", "DAILY", "NEWS"):
-        draw.text((MARGIN, y), word, font=title_font, fill=TEXT_WHITE)
-        y += 110
-    draw.rectangle([MARGIN, y + 10, MARGIN + 260, y + 18], fill=ACCENT_SAFFRON)
-    y += 60
-    draw.text((MARGIN, y), date_label, font=date_font, fill=ACCENT_SAFFRON)
-    y += 110
+    name_font = _font(FONT_CANDIDATES_BOLD, 54)
+    meta_font = _font(FONT_CANDIDATES_BOLD, 30)
 
-    # Teaser: top three headlines, one line each
-    max_text_width = WIDTH - MARGIN * 2 - 40
-    for item in headlines[:3]:
-        line = _wrap_ellipsis(draw, item["title"], teaser_font, max_text_width, 1)[0]
-        draw.text((MARGIN, y), "•", font=teaser_font, fill=ACCENT_SAFFRON)
-        draw.text((MARGIN + 40, y), line, font=teaser_font, fill=TEXT_SUMMARY)
+    # Bottom band with dish name + cuisine
+    name_lines = _wrap(draw, recipe["name"], name_font, WIDTH - 2 * MARGIN)[:2]
+    y = WIDTH + (96 if len(name_lines) == 1 else 26)
+    for line in name_lines:
+        lw = draw.textlength(line, font=name_font)
+        draw.text(((WIDTH - lw) / 2, y), line, font=name_font, fill=CREAM)
         y += 64
 
-    swipe = "Swipe for today's top stories  →"
-    sw = draw.textlength(swipe, font=swipe_font)
-    draw.text(((WIDTH - sw) / 2, HEIGHT - 210), swipe, font=swipe_font, fill=ACCENT_SAFFRON)
+    meta = " • ".join(filter(None, [recipe["area"], recipe["category"]]))
+    if meta:
+        mw = draw.textlength(meta, font=meta_font)
+        draw.text(((WIDTH - mw) / 2, y + 8), meta, font=meta_font, fill=ACCENT)
 
-    _footer(draw, 0, total_pages)
+    _footer(draw, 0, total_pages, dark_bg=True, y=HEIGHT - 42)
     img.save(out_path, "JPEG", quality=90)
 
 
-def make_story_card(
-    items: list[dict],
-    start_number: int,
-    date_label: str,
-    page: int,
-    total_pages: int,
-    out_path: str,
-) -> None:
-    img, draw = _new_canvas()
+def make_ingredients_card(recipe: dict, page: int, total_pages: int, out_path: str) -> None:
+    img, draw, y = _text_card_canvas("Ingredients")
 
-    header_font = _font(FONT_CANDIDATES_BOLD, 48)
-    date_font = _font(FONT_CANDIDATES_REGULAR, 30)
-    num_font = _font(FONT_CANDIDATES_BOLD, 44)
-    head_font = _font(FONT_CANDIDATES_BOLD, 40)
-    sum_font = _font(FONT_CANDIDATES_REGULAR, 30)
-    src_font = _font(FONT_CANDIDATES_REGULAR, 26)
+    item_font = _font(FONT_CANDIDATES_REGULAR, 36)
+    measure_font = _font(FONT_CANDIDATES_BOLD, 36)
 
-    y = 70
-    draw.text((MARGIN, y), "INDIA DAILY NEWS", font=header_font, fill=TEXT_WHITE)
-    dw = draw.textlength(date_label, font=date_font)
-    draw.text((WIDTH - MARGIN - dw, y + 16), date_label, font=date_font, fill=ACCENT_SAFFRON)
-    y += 78
-    draw.line([(MARGIN, y), (WIDTH - MARGIN, y)], fill=(60, 78, 105), width=2)
-    y += 48
-
-    text_x = MARGIN + 82
-    max_text_width = WIDTH - text_x - MARGIN
+    items = recipe["ingredients"]
+    two_columns = len(items) > 12
+    col_width = (WIDTH - 2 * MARGIN - 60) // 2 if two_columns else WIDTH - 2 * MARGIN
+    line_h = 64
+    col_x = [MARGIN, MARGIN + col_width + 60]
+    per_col = (len(items) + 1) // 2 if two_columns else len(items)
 
     for i, item in enumerate(items):
-        draw.text((MARGIN, y), f"{start_number + i:02d}", font=num_font, fill=ACCENT_SAFFRON)
-        for line in _wrap_ellipsis(draw, item["title"], head_font, max_text_width, 3):
-            draw.text((text_x, y), line, font=head_font, fill=TEXT_WHITE)
-            y += 52
-        y += 6
-        if item.get("summary"):
-            for line in _wrap_ellipsis(draw, item["summary"], sum_font, max_text_width, 3):
-                draw.text((text_x, y), line, font=sum_font, fill=TEXT_SUMMARY)
-                y += 42
-        draw.text((text_x, y + 4), item["source"], font=src_font, fill=TEXT_MUTED)
-        y += 76
+        col = i // per_col if two_columns else 0
+        row = i % per_col if two_columns else i
+        x = col_x[col]
+        yy = y + row * line_h
+        draw.ellipse([x, yy + 16, x + 10, yy + 26], fill=ACCENT)
+        text = f"{item['measure']} {item['name']}".strip()
+        line = _wrap(draw, text, item_font, col_width - 30)[0]
+        if line != text:
+            line = line.rstrip(",. ") + "…"
+        draw.text((x + 28, yy), line, font=item_font, fill=DARK)
 
     _footer(draw, page, total_pages)
     img.save(out_path, "JPEG", quality=90)
+
+
+def make_steps_cards(
+    recipe: dict, first_page: int, out_paths: list[str]
+) -> int:
+    """Render instruction cards, filling as many of `out_paths` as needed.
+
+    Returns the number of cards written. Steps that don't fit on the
+    last card are dropped with a "full recipe in caption" note.
+    """
+    step_font = _font(FONT_CANDIDATES_REGULAR, 34)
+    num_font = _font(FONT_CANDIDATES_BOLD, 38)
+    note_font = _font(FONT_CANDIDATES_REGULAR, 28)
+
+    line_h = 48
+    step_gap = 30
+    bottom_limit = HEIGHT - 140
+    text_x = MARGIN + 66
+    max_text_width = WIDTH - text_x - MARGIN
+
+    # Pre-measure wrapping with a scratch canvas
+    scratch = ImageDraw.Draw(Image.new("RGB", (1, 1)))
+    wrapped = [
+        _wrap(scratch, step, step_font, max_text_width) for step in recipe["steps"]
+    ]
+
+    cards: list[list[int]] = [[]]  # step indices per card
+    y = 260  # matches _text_card_canvas start
+    for i, lines in enumerate(wrapped):
+        height = len(lines) * line_h + step_gap
+        if y + height > bottom_limit and cards[-1]:
+            if len(cards) == len(out_paths):
+                break
+            cards.append([])
+            y = 260
+        cards[-1].append(i)
+        y += height
+
+    shown = sum(len(c) for c in cards)
+    total_pages = first_page + len(cards)
+
+    for card_idx, step_indices in enumerate(cards):
+        header = "Method" if len(cards) == 1 else f"Method ({card_idx + 1}/{len(cards)})"
+        img, draw, y = _text_card_canvas(header)
+        for i in step_indices:
+            draw.text((MARGIN, y), f"{i + 1:02d}", font=num_font, fill=ACCENT)
+            for line in wrapped[i]:
+                draw.text((text_x, y), line, font=step_font, fill=DARK)
+                y += line_h
+            y += step_gap
+        if card_idx == len(cards) - 1 and shown < len(recipe["steps"]):
+            note = "Continued in caption — full recipe there!"
+            nw = draw.textlength(note, font=note_font)
+            draw.text(((WIDTH - nw) / 2, HEIGHT - 110), note, font=note_font, fill=MUTED)
+        _footer(draw, first_page + card_idx, total_pages)
+        img.save(out_paths[card_idx], "JPEG", quality=90)
+
+    return len(cards)

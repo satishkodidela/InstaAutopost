@@ -1,16 +1,17 @@
-# InstaAutopost — Daily India News on Instagram
+# InstaAutopost — Recipe of the Day on Instagram
 
-Automatically posts a daily "India News Highlights" **carousel** (cover
-card + story cards with summaries) to Instagram at **8:00 AM IST** using
-GitHub Actions and the official Instagram Graph API.
+Automatically posts a daily recipe **carousel** — real dish photo cover,
+ingredients card, and step-by-step method cards — to Instagram at
+**8:00 AM IST** using GitHub Actions and the official Instagram Graph API.
 
 ## How it works
 
 1. **GitHub Actions** wakes up daily at 8:00 AM IST (also runnable manually).
-2. `src/generate.py` pulls top headlines from Times of India, The Hindu,
-   NDTV, and Indian Express RSS feeds, then renders three 1080×1350 cards
-   with Pillow: a cover, plus two story cards (3 headlines each, with
-   short summaries), and writes a caption.
+2. `src/generate.py` fetches a random recipe (with a real dish photo) from
+   [TheMealDB](https://www.themealdb.com)'s free API, skipping recipes
+   already posted (tracked in `data/posted.json`), then renders 1080×1350
+   cards with Pillow: photo cover, ingredients, and 1–3 method cards. The
+   caption gets the full ingredients + method.
 3. The images are committed to `posts/` so Instagram can fetch them from
    public `raw.githubusercontent.com` URLs (the API requires public URLs).
 4. `src/publish.py` creates carousel item containers, wraps them in a
@@ -50,7 +51,7 @@ account. This is free and required — personal accounts cannot use the API.
 
 ### 4. Test it
 
-Run the workflow manually: **Actions → Daily Instagram news post → Run
+Run the workflow manually: **Actions → Daily Instagram recipe post → Run
 workflow**. Check your Instagram feed.
 
 ## Local testing
@@ -69,7 +70,10 @@ and `GITHUB_REPOSITORY=owner/repo` — but the image must already be pushed.
 
 - **Posting time**: edit the cron in `.github/workflows/daily-post.yml`
   (cron is in UTC; IST = UTC+5:30).
-- **News sources / count**: edit `FEEDS` in `src/news.py`; headline count
-  and stories-per-card are constants at the top of `src/generate.py`.
+- **Dietary filter**: add categories to `EXCLUDED_CATEGORIES` in
+  `src/recipe.py` (e.g. `["Beef", "Pork"]`) to never post them.
 - **Card design**: colors, fonts, and layout live in `src/card.py`.
 - **Caption & hashtags**: `HASHTAGS` and `build_caption()` in `src/generate.py`.
+- **Attribution**: recipe data and photos come from TheMealDB's free/dev
+  API; keep the credit line in the caption if you use it long-term (and
+  consider their inexpensive supporter key for production use).
