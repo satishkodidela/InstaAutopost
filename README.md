@@ -1,8 +1,7 @@
 # InstaAutopost — Recipe of the Day on Instagram
 
-Automatically posts a daily recipe to Instagram at **7:30 PM IST** (evening
-peak for Indian audiences) using GitHub Actions and the official Instagram
-Graph API. Each day it randomly posts either an image **carousel** (dish
+Automatically posts a daily recipe to Instagram at **8:00 AM IST** using
+GitHub Actions and the official Instagram Graph API. Each day it randomly posts either an image **carousel** (dish
 photo cover, ingredients, method cards, follow CTA) or a **Reel** —
 1080×1920 with background music and a voiceover.
 

@@ -2,8 +2,8 @@ name: Daily Instagram recipe post
 
 on:
   schedule:
-    # 7:30 PM IST (2:00 PM UTC) every day — evening peak for Indian audiences
-    - cron: "0 14 * * *"
+    # 8:00 AM IST (2:30 AM UTC) every day
+    - cron: "30 2 * * *"
   workflow_dispatch:
     inputs:
       format:
