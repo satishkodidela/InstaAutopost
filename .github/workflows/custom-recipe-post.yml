@@ -1,0 +1,84 @@
+name: Post custom recipe
+
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: "Dish name (e.g. Hyderabadi Veg Biryani)"
+        required: true
+      image_url:
+        description: "Public URL of a real photo of the dish (cover + AI visual anchor)"
+        required: true
+      ingredients:
+        description: "Ingredients, separated by ; (e.g. 2 cups rice; 300g vegetables; 2 tbsp masala)"
+        required: true
+      steps:
+        description: "Steps, separated by ; (e.g. Soak rice 30 min; Fry vegetables; Layer and steam)"
+        required: true
+      category:
+        description: "Category (optional, e.g. Rice, Dessert)"
+        required: false
+        default: ""
+      area:
+        description: "Cuisine (optional, e.g. Telugu, South Indian)"
+        required: false
+        default: ""
+      format:
+        description: "Post format"
+        required: false
+        default: "reel"
+        type: choice
+        options: [reel, carousel]
+
+permissions:
+  contents: write
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build recipe from form inputs
+        env:
+          RECIPE_NAME: ${{ inputs.name }}
+          RECIPE_IMAGE_URL: ${{ inputs.image_url }}
+          RECIPE_INGREDIENTS: ${{ inputs.ingredients }}
+          RECIPE_STEPS: ${{ inputs.steps }}
+          RECIPE_CATEGORY: ${{ inputs.category }}
+          RECIPE_AREA: ${{ inputs.area }}
+        run: python -u src/queue_recipe.py
+
+      - name: Generate content
+        env:
+          KIE_API_KEY: ${{ secrets.KIE_API_KEY }}
+          SARVAM_API_KEY: ${{ secrets.SARVAM_API_KEY }}
+          POST_FORMAT: ${{ inputs.format }}
+          IG_HANDLE: ${{ vars.IG_HANDLE }}
+          REEL_SECONDS: ${{ vars.REEL_SECONDS }}
+          SHOT_SECONDS: ${{ vars.SHOT_SECONDS }}
+          KIE_RESOLUTION: ${{ vars.KIE_RESOLUTION }}
+          KIE_SEEDANCE_MODEL: ${{ vars.KIE_SEEDANCE_MODEL }}
+          SARVAM_SPEAKER: ${{ vars.SARVAM_SPEAKER }}
+        run: python -u src/generate.py
+
+      - name: Commit and push media (Instagram needs public URLs)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add posts/ data/ recipes/
+          git commit -m "Custom recipe post $(TZ=Asia/Kolkata date +%F)"
+          git push
+
+      - name: Publish to Instagram
+        env:
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+        run: python src/publish.py
