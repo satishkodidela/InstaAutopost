@@ -194,6 +194,14 @@ def generate_clips(prompts: list[str], ref_image: str | None, key: str, out_dir:
     return paths
 
 
+# Veo's audio filter false-positives on ambience that could read as speech;
+# an explicit no-speech audio direction steers it (VO/music are mixed locally)
+VEO_AUDIO_NOTE = (
+    " Audio: natural cooking sounds only — gentle sizzling and soft kitchen "
+    "ambience, no speech, no narration, no music."
+)
+
+
 def generate_clips_veo(prompts: list[str], ref_image: str | None, out_dir: Path) -> list[Path]:
     from veo_client import build_reference, make_client, start_generation, wait_and_save
 
@@ -205,11 +213,19 @@ def generate_clips_veo(prompts: list[str], ref_image: str | None, out_dir: Path)
     # pattern 429s on the second create and strands paid generations
     paths = []
     for i, p in enumerate(prompts):
-        op = start_generation(
-            client, p.replace("@image1", "the reference image"), reference, GEN_SECONDS
-        )
+        prompt = p.replace("@image1", "the reference image") + VEO_AUDIO_NOTE
         path = out_dir / f"gen{i:02d}.mp4"
-        wait_and_save(client, op, path)
+        # The filter is flaky ("try again", uncharged) — same false-positive
+        # class as Seedance's audio filter, handled the same way
+        for attempt in range(3):
+            try:
+                op = start_generation(client, prompt, reference, GEN_SECONDS)
+                wait_and_save(client, op, path)
+                break
+            except RuntimeError as exc:
+                if "filtered" not in str(exc).lower() or attempt == 2:
+                    raise
+                print(f"  generation {i + 1} hit a Veo filter; retrying", flush=True)
         print(f"  generation {i + 1}/{len(prompts)} done", flush=True)
         paths.append(path)
     return paths
