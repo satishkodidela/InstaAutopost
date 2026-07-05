@@ -73,4 +73,5 @@ jobs:
         run: |
           git add data/history.json
           git diff --cached --quiet || git commit -m "Record published $(TZ=Asia/Kolkata date +%F)"
+          git pull --rebase origin HEAD
           git push

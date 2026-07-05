@@ -95,7 +95,14 @@ def publish(ig_user_id: str, token: str, creation_id: str) -> None:
 
 
 def _record_published(date_str: str) -> None:
-    """Write published_at timestamp into data/history.json for idempotency checks."""
+    """Write published_at timestamp into data/history.json for idempotency checks.
+
+    Uses an atomic write (temp file + rename) so concurrent runs don't corrupt
+    the JSON file.  The last writer wins on published_at, which is acceptable
+    because both timestamps are valid and the idempotency check only cares that
+    the field is present.
+    """
+    import tempfile
     history_path = Path(__file__).resolve().parent.parent / "data" / "history.json"
     if not history_path.exists():
         return
@@ -103,9 +110,21 @@ def _record_published(date_str: str) -> None:
     for entry in reversed(history):
         if entry.get("date") == date_str:
             entry["published_at"] = datetime.now(ZoneInfo("Asia/Kolkata")).isoformat()
-            history_path.write_text(json.dumps(history, indent=2) + "\n")
-            print(f"Recorded published_at in history for {date_str}.")
             break
+    # Write atomically: temp file in the same directory, then rename.
+    tmp = None
+    try:
+        fd, tmp_path = tempfile.mkstemp(
+            dir=history_path.parent, prefix=".history_", suffix=".json.tmp"
+        )
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(json.dumps(history, indent=2) + "\n")
+        os.replace(tmp_path, history_path)
+    except Exception:
+        if tmp_path and Path(tmp_path).exists():
+            Path(tmp_path).unlink(missing_ok=True)
+        raise
+    print(f"Recorded published_at in history for {date_str}.")
 
 
 def main() -> None:
