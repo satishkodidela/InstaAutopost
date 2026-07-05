@@ -289,6 +289,10 @@ def main() -> None:
                 make_ai_reel(recipe, HANDLE, video_path, vo_path, music)
                 reel_kind = "ai"
             except Exception as exc:
+                # Test mode: fail the run rather than publish a fallback
+                # carousel (repeated backend tests were spamming the feed)
+                if os.environ.get("REQUIRE_REEL"):
+                    raise
                 # No card-slideshow fallback (rejected by account owner) —
                 # post the carousel instead so the day never goes empty.
                 print(f"AI reel unavailable, posting carousel instead: {exc}", file=sys.stderr)

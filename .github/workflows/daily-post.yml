@@ -10,6 +10,11 @@ on:
         description: "Force post format (reel or carousel); empty = random"
         required: false
         default: ""
+      require_reel:
+        description: "Test mode: fail the run if the reel can't be made (no carousel fallback, nothing posted)"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -33,6 +38,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           SARVAM_API_KEY: ${{ secrets.SARVAM_API_KEY }}
           POST_FORMAT: ${{ inputs.format }}
+          REQUIRE_REEL: ${{ inputs.require_reel == true && '1' || '' }}
           # Tunables — set under Settings -> Secrets and variables -> Variables
           IG_HANDLE: ${{ vars.IG_HANDLE }}
           REEL_SECONDS: ${{ vars.REEL_SECONDS }}
