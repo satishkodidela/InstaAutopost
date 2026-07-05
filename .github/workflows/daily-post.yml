@@ -30,6 +30,7 @@ jobs:
       - name: Generate recipe cards and caption
         env:
           KIE_API_KEY: ${{ secrets.KIE_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           SARVAM_API_KEY: ${{ secrets.SARVAM_API_KEY }}
           POST_FORMAT: ${{ inputs.format }}
           # Tunables — set under Settings -> Secrets and variables -> Variables
@@ -37,8 +38,10 @@ jobs:
           REEL_SECONDS: ${{ vars.REEL_SECONDS }}
           SHOT_SECONDS: ${{ vars.SHOT_SECONDS }}
           REEL_PROBABILITY: ${{ vars.REEL_PROBABILITY }}
+          VIDEO_BACKEND: ${{ vars.VIDEO_BACKEND }}
           KIE_RESOLUTION: ${{ vars.KIE_RESOLUTION }}
           KIE_SEEDANCE_MODEL: ${{ vars.KIE_SEEDANCE_MODEL }}
+          VEO_MODEL: ${{ vars.VEO_MODEL }}
           SARVAM_SPEAKER: ${{ vars.SARVAM_SPEAKER }}
         run: python -u src/generate.py
 

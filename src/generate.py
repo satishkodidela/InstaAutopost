@@ -279,9 +279,13 @@ def main() -> None:
                 vo_path, vo_lang = vo
 
             try:
-                if not os.environ.get("KIE_API_KEY"):
-                    raise RuntimeError("KIE_API_KEY not set")
-                print("Generating AI shot reel via Kie.ai (Seedance)...", flush=True)
+                from ai_reel import BACKEND
+
+                key_var = "GEMINI_API_KEY" if BACKEND == "veo" else "KIE_API_KEY"
+                if not os.environ.get(key_var):
+                    raise RuntimeError(f"{key_var} not set")
+                label = "Veo 3.1 (Gemini)" if BACKEND == "veo" else "Kie.ai (Seedance)"
+                print(f"Generating AI shot reel via {label}...", flush=True)
                 make_ai_reel(recipe, HANDLE, video_path, vo_path, music)
                 reel_kind = "ai"
             except Exception as exc:

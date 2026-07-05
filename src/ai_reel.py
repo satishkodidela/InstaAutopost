@@ -1,4 +1,8 @@
-"""Full-AI recipe reel via Seedance multi-shot generations (Kie.ai).
+"""Full-AI recipe reel via multi-shot generations.
+
+Backends (VIDEO_BACKEND env): "seedance" (default, via Kie.ai) or "veo"
+(Veo 3.1 via the Gemini API, GEMINI_API_KEY). Veo caps generations at 8s
+(2 beats) vs Seedance's 12s (3 beats); the beat grid below adapts.
 
 Design (per researched best practices, see FEEDBACK.md and plan):
 - ~24s total from TWO 12s generations, each holding 3 timestamped beats
@@ -27,12 +31,13 @@ from PIL import Image, ImageDraw
 from card import FONT_CANDIDATES_BOLD, _font, _wrap
 from kie_client import create_task, download, get_credits, poll_task
 
+BACKEND = (os.environ.get("VIDEO_BACKEND") or "seedance").lower()
 KIE_MODEL = os.environ.get("KIE_SEEDANCE_MODEL") or "bytedance/seedance-2-mini"
 RESOLUTION = os.environ.get("KIE_RESOLUTION") or "480p"
 TARGET_SECONDS = int(os.environ.get("REEL_SECONDS") or "24")
-GEN_SECONDS = 12  # one generation = 3 beats x 4s
-BEATS_PER_GEN = 3
-BEAT_SECONDS = GEN_SECONDS // BEATS_PER_GEN
+BEAT_SECONDS = 4
+GEN_SECONDS = 8 if BACKEND == "veo" else 12  # Veo 3.1 caps at 8s/generation
+BEATS_PER_GEN = GEN_SECONDS // BEAT_SECONDS
 # Measured burn rates: mini@480p 9.5, seedance-2@720p 41.0; mini@720p ~19 (2x of 480p
 # per Kie pricing). Set KIE_CREDITS_PER_SECOND alongside model/resolution changes so
 # the budget check below doesn't start reels it can't afford to finish.
@@ -185,6 +190,27 @@ def generate_clips(prompts: list[str], ref_image: str | None, key: str, out_dir:
         path = out_dir / f"gen{i:02d}.mp4"
         download(url, path)
         print(f"  generation {i + 1}/{len(task_ids)} done", flush=True)
+        paths.append(path)
+    return paths
+
+
+def generate_clips_veo(prompts: list[str], ref_image: str | None, out_dir: Path) -> list[Path]:
+    from veo_client import make_client, start_generation, wait_and_save
+
+    client = make_client()
+    # Veo has no @image1 syntax; the dish photo rides along as a reference image
+    ops = [
+        start_generation(
+            client, p.replace("@image1", "the reference image"), ref_image, GEN_SECONDS
+        )
+        for p in prompts
+    ]
+    print(f"  {len(ops)} Veo generations created, waiting...", flush=True)
+    paths = []
+    for i, op in enumerate(ops):
+        path = out_dir / f"gen{i:02d}.mp4"
+        wait_and_save(client, op, path)
+        print(f"  generation {i + 1}/{len(ops)} done", flush=True)
         paths.append(path)
     return paths
 
@@ -365,24 +391,30 @@ def make_ai_reel(
     voiceover: Path | None,
     music: Path | None,
 ) -> None:
-    key = os.environ["KIE_API_KEY"]
-
     n_gens = max(1, round(TARGET_SECONDS / GEN_SECONDS))
-    per_gen = GEN_SECONDS * CREDITS_PER_SECOND
-    balance = get_credits(key)
-    affordable = int(balance // per_gen)
-    if affordable < 1:
-        raise RuntimeError(
-            f"Kie.ai balance too low: {balance:.0f} credits (~{per_gen:.0f}/generation). Top up."
-        )
-    if affordable < n_gens:
-        print(f"  Credits low ({balance:.0f}): {affordable} generation(s) only", flush=True)
-        n_gens = affordable
-    if balance - n_gens * per_gen < 2 * n_gens * per_gen:
-        print(f"  WARNING: Kie credits low ({balance:.0f}) — under ~2 days of reels left. Top up soon.", flush=True)
+
+    key = None
+    if BACKEND != "veo":
+        # Kie exposes a credit balance; Gemini billing has no equivalent check
+        key = os.environ["KIE_API_KEY"]
+        per_gen = GEN_SECONDS * CREDITS_PER_SECOND
+        balance = get_credits(key)
+        affordable = int(balance // per_gen)
+        if affordable < 1:
+            raise RuntimeError(
+                f"Kie.ai balance too low: {balance:.0f} credits (~{per_gen:.0f}/generation). Top up."
+            )
+        if affordable < n_gens:
+            print(f"  Credits low ({balance:.0f}): {affordable} generation(s) only", flush=True)
+            n_gens = affordable
+        if balance - n_gens * per_gen < 2 * n_gens * per_gen:
+            print(f"  WARNING: Kie credits low ({balance:.0f}) — under ~2 days of reels left. Top up soon.", flush=True)
 
     prompts = build_generation_prompts(recipe, n_gens)
     ref_image = recipe.get("thumb") or None
     with tempfile.TemporaryDirectory() as tmp:
-        clips = generate_clips(prompts, ref_image, key, Path(tmp))
+        if BACKEND == "veo":
+            clips = generate_clips_veo(prompts, ref_image, Path(tmp))
+        else:
+            clips = generate_clips(prompts, ref_image, key, Path(tmp))
         assemble_reel(clips, recipe, handle, out_path, voiceover, music)
