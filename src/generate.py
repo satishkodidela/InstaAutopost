@@ -205,6 +205,19 @@ def main() -> None:
         print(f"Last post: {last_post.get('name')} [{last_post.get('format')}] "
               f"on {last_post.get('date')}")
 
+    # Idempotency: skip if today was already successfully published.
+    # This prevents double-posting when both the primary and backup schedules fire,
+    # or when a workflow_dispatch is triggered on a day where the schedule already ran.
+    force_post = os.environ.get("FORCE_POST", "").lower() in ("1", "true", "yes")
+    if not force_post:
+        today_entries = [h for h in history if h.get("date") == date_str]
+        if today_entries and today_entries[-1].get("published_at"):
+            print(
+                f"Already published a post for {date_str} — skipping generation. "
+                "Use FORCE_POST=true in workflow_dispatch to override."
+            )
+            return
+
     festival = None
     try:
         # Source order: owner queue -> South Indian bank -> TheMealDB fallback

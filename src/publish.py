@@ -14,6 +14,7 @@ The images must already be committed and pushed (the workflow does this
 before running this script).
 """
 
+import json
 import os
 import sys
 import time
@@ -93,6 +94,20 @@ def publish(ig_user_id: str, token: str, creation_id: str) -> None:
     print(f"Published! Media ID: {media_id}")
 
 
+def _record_published(date_str: str) -> None:
+    """Write published_at timestamp into data/history.json for idempotency checks."""
+    history_path = Path(__file__).resolve().parent.parent / "data" / "history.json"
+    if not history_path.exists():
+        return
+    history = json.loads(history_path.read_text(encoding="utf-8"))
+    for entry in reversed(history):
+        if entry.get("date") == date_str:
+            entry["published_at"] = datetime.now(ZoneInfo("Asia/Kolkata")).isoformat()
+            history_path.write_text(json.dumps(history, indent=2) + "\n")
+            print(f"Recorded published_at in history for {date_str}.")
+            break
+
+
 def main() -> None:
     ig_user_id = require_env("IG_USER_ID")
     token = require_env("IG_ACCESS_TOKEN")
@@ -100,6 +115,23 @@ def main() -> None:
     branch = os.environ.get("GITHUB_REF_NAME", "main")
 
     date_str = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%Y-%m-%d")
+
+    # Idempotency: skip if today was already published and FORCE_POST is not set.
+    force_post = os.environ.get("FORCE_POST", "").lower() in ("1", "true", "yes")
+    if not force_post:
+        history_path = Path(__file__).resolve().parent.parent / "data" / "history.json"
+        if history_path.exists():
+            history = json.loads(history_path.read_text(encoding="utf-8"))
+            today_entry = next(
+                (h for h in reversed(history) if h.get("date") == date_str), None
+            )
+            if today_entry and today_entry.get("published_at"):
+                print(
+                    f"Already published for {date_str} at {today_entry['published_at']}. "
+                    "Skipping. Use FORCE_POST=true in workflow_dispatch to override."
+                )
+                return
+
     posts_dir = Path(__file__).resolve().parent.parent / "posts"
     caption_path = posts_dir / f"{date_str}.txt"
     video = posts_dir / f"{date_str}.mp4"
@@ -131,6 +163,7 @@ def main() -> None:
             },
         )
         publish(ig_user_id, token, creation_id)
+        _record_published(date_str)
         return
 
     image_urls = [raw_url(p.name) for p in images]
@@ -164,6 +197,7 @@ def main() -> None:
         )
 
     publish(ig_user_id, token, creation_id)
+    _record_published(date_str)
 
 
 if __name__ == "__main__":
