@@ -195,22 +195,22 @@ def generate_clips(prompts: list[str], ref_image: str | None, key: str, out_dir:
 
 
 def generate_clips_veo(prompts: list[str], ref_image: str | None, out_dir: Path) -> list[Path]:
-    from veo_client import make_client, start_generation, wait_and_save
+    from veo_client import build_reference, make_client, start_generation, wait_and_save
 
     client = make_client()
     # Veo has no @image1 syntax; the dish photo rides along as a reference image
-    ops = [
-        start_generation(
-            client, p.replace("@image1", "the reference image"), ref_image, GEN_SECONDS
-        )
-        for p in prompts
-    ]
-    print(f"  {len(ops)} Veo generations created, waiting...", flush=True)
+    reference = build_reference(ref_image) if ref_image else None
+    # Strictly sequential (create -> finish -> next): Tier 1 Veo rate limits
+    # are a couple of requests/minute, so the Kie-style create-all-then-poll
+    # pattern 429s on the second create and strands paid generations
     paths = []
-    for i, op in enumerate(ops):
+    for i, p in enumerate(prompts):
+        op = start_generation(
+            client, p.replace("@image1", "the reference image"), reference, GEN_SECONDS
+        )
         path = out_dir / f"gen{i:02d}.mp4"
         wait_and_save(client, op, path)
-        print(f"  generation {i + 1}/{len(ops)} done", flush=True)
+        print(f"  generation {i + 1}/{len(prompts)} done", flush=True)
         paths.append(path)
     return paths
 

@@ -27,7 +27,8 @@ def make_client():
     )
 
 
-def _reference_image(url: str):
+def build_reference(url: str):
+    """Fetch the dish photo once; reusable across all generations."""
     from google.genai import types
 
     resp = requests.get(url, timeout=120)
@@ -40,7 +41,9 @@ def _reference_image(url: str):
     )
 
 
-def start_generation(client, prompt: str, ref_image_url: str | None, duration_s: int):
+def start_generation(client, prompt: str, reference, duration_s: int):
+    """Create one generation; retries 429s — Tier 1 Veo allows only a couple
+    of requests per minute, so back-to-back creates trip the rate limiter."""
     from google.genai import types
 
     config = types.GenerateVideosConfig(
@@ -51,9 +54,21 @@ def start_generation(client, prompt: str, ref_image_url: str | None, duration_s:
     )
     if PERSON_GENERATION:
         config.person_generation = PERSON_GENERATION
-    if ref_image_url:
-        config.reference_images = [_reference_image(ref_image_url)]
-    return client.models.generate_videos(model=VEO_MODEL, prompt=prompt, config=config)
+    if reference is not None:
+        config.reference_images = [reference]
+
+    attempts = 5
+    for attempt in range(attempts):
+        try:
+            return client.models.generate_videos(
+                model=VEO_MODEL, prompt=prompt, config=config
+            )
+        except Exception as exc:
+            rate_limited = "429" in str(exc) or "RESOURCE_EXHAUSTED" in str(exc)
+            if not rate_limited or attempt == attempts - 1:
+                raise
+            print(f"  Veo rate limit; retrying in 70s ({attempt + 1}/{attempts - 1})", flush=True)
+            time.sleep(70)
 
 
 def wait_and_save(client, operation, path, timeout_s: int = 1200) -> None:
