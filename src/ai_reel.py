@@ -200,6 +200,10 @@ VEO_AUDIO_NOTE = (
     " Audio: natural cooking sounds only — gentle sizzling and soft kitchen "
     "ambience, no speech, no narration, no music."
 )
+# Onomatopoeic cooking words push Veo's audio model into effects its own
+# filter then rejects (observed: one beat rejected 3x straight); late retry
+# variants swap them out
+_AUDIO_WORDS = re.compile(r"crackl\w*|sizzl\w*|splutter\w*|sputter\w*", re.IGNORECASE)
 
 
 def generate_clips_veo(prompts: list[str], ref_image: str | None, out_dir: Path) -> list[Path]:
@@ -213,19 +217,31 @@ def generate_clips_veo(prompts: list[str], ref_image: str | None, out_dir: Path)
     # pattern 429s on the second create and strands paid generations
     paths = []
     for i, p in enumerate(prompts):
-        prompt = p.replace("@image1", "the reference image") + VEO_AUDIO_NOTE
+        base = p.replace("@image1", "the reference image")
+        quiet = _AUDIO_WORDS.sub("steaming", base)
+        # Rejections are uncharged, so retry aggressively: flaky-filter
+        # retries first, then progressively quieter prompt variants
+        variants = [
+            base + VEO_AUDIO_NOTE,
+            base + VEO_AUDIO_NOTE,
+            base,
+            quiet + VEO_AUDIO_NOTE,
+            quiet,
+        ]
         path = out_dir / f"gen{i:02d}.mp4"
-        # The filter is flaky ("try again", uncharged) — same false-positive
-        # class as Seedance's audio filter, handled the same way
-        for attempt in range(3):
+        for attempt, prompt in enumerate(variants):
             try:
                 op = start_generation(client, prompt, reference, GEN_SECONDS)
                 wait_and_save(client, op, path)
                 break
             except RuntimeError as exc:
-                if "filtered" not in str(exc).lower() or attempt == 2:
+                if "filtered" not in str(exc).lower() or attempt == len(variants) - 1:
                     raise
-                print(f"  generation {i + 1} hit a Veo filter; retrying", flush=True)
+                print(
+                    f"  generation {i + 1} hit a Veo filter; retrying "
+                    f"({attempt + 2}/{len(variants)})",
+                    flush=True,
+                )
         print(f"  generation {i + 1}/{len(prompts)} done", flush=True)
         paths.append(path)
     return paths
