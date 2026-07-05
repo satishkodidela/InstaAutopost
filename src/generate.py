@@ -286,24 +286,7 @@ def main() -> None:
                     raise RuntimeError(f"{key_var} not set")
                 label = "Veo 3.1 (Gemini)" if BACKEND == "veo" else "Kie.ai (Seedance)"
                 print(f"Generating AI shot reel via {label}...", flush=True)
-                try:
-                    make_ai_reel(recipe, HANDLE, video_path, vo_path, music)
-                except Exception as veo_exc:
-                    # Veo's audio safety filter false-positives at a high rate
-                    # on the young fast+9:16+reference path (Google-side, no
-                    # fix) — regenerate on Seedance rather than lose the reel.
-                    # ai_reel derives its beat grid from VIDEO_BACKEND at
-                    # import, so flip the env and reload for the 12s/3-beat grid.
-                    if BACKEND != "veo" or not os.environ.get("KIE_API_KEY"):
-                        raise
-                    print(f"Veo reel failed ({veo_exc}); falling back to Seedance", file=sys.stderr)
-                    os.environ["VIDEO_BACKEND"] = "seedance"
-                    import importlib
-
-                    import ai_reel as _ai_reel
-
-                    importlib.reload(_ai_reel)
-                    _ai_reel.make_ai_reel(recipe, HANDLE, video_path, vo_path, music)
+                make_ai_reel(recipe, HANDLE, video_path, vo_path, music)
                 reel_kind = "ai"
             except Exception as exc:
                 # Test mode: fail the run rather than publish a fallback
