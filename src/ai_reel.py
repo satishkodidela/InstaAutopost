@@ -146,14 +146,26 @@ def build_generation_prompts(recipe: dict, n_gens: int) -> list[str]:
     prompts = []
     for g in range(n_gens):
         chunk = beats[g * BEATS_PER_GEN : (g + 1) * BEATS_PER_GEN]
-        timed = " ".join(
-            f"[{i * BEAT_SECONDS}s]{' Cut to:' if i else ''} {beat}"
-            for i, beat in enumerate(chunk)
-        )
-        prompts.append(
-            f"Use @image1 for the dish's exact appearance and plating. "
-            f"{STYLE_BLOCK} {timed} {NEGATIVE}"
-        )
+        if BACKEND == "veo":
+            # Veo's documented multi-shot syntax is [MM:SS-MM:SS] ranges;
+            # exclusions are phrased positively, not as an avoid-list
+            timed = " ".join(
+                f"[00:{i * BEAT_SECONDS:02d}-00:{(i + 1) * BEAT_SECONDS:02d}] {beat}"
+                for i, beat in enumerate(chunk)
+            )
+            prompts.append(
+                f"Use the reference image for the dish's exact appearance and "
+                f"plating. {STYLE_BLOCK} {timed} {VEO_AUDIO_LINE}"
+            )
+        else:
+            timed = " ".join(
+                f"[{i * BEAT_SECONDS}s]{' Cut to:' if i else ''} {beat}"
+                for i, beat in enumerate(chunk)
+            )
+            prompts.append(
+                f"Use @image1 for the dish's exact appearance and plating. "
+                f"{STYLE_BLOCK} {timed} {NEGATIVE}"
+            )
     return prompts
 
 
@@ -194,16 +206,13 @@ def generate_clips(prompts: list[str], ref_image: str | None, key: str, out_dir:
     return paths
 
 
-# Veo's audio filter false-positives on ambience that could read as speech;
-# an explicit no-speech audio direction steers it (VO/music are mixed locally)
-VEO_AUDIO_NOTE = (
-    " Audio: natural cooking sounds only — gentle sizzling and soft kitchen "
-    "ambience, no speech, no narration, no music."
+# Veo audio is prompted positively with documented labels (SFX / Ambient
+# noise); speech only comes from quoted dialogue, which these prompts never
+# contain. Audio can't be disabled via the Gemini API.
+VEO_AUDIO_LINE = (
+    "SFX: gentle sizzling of food cooking. "
+    "Ambient noise: soft, warm kitchen ambience."
 )
-# Onomatopoeic cooking words push Veo's audio model into effects its own
-# filter then rejects (observed: one beat rejected 3x straight); late retry
-# variants swap them out
-_AUDIO_WORDS = re.compile(r"crackl\w*|sizzl\w*|splutter\w*|sputter\w*", re.IGNORECASE)
 
 
 def generate_clips_veo(prompts: list[str], ref_image: str | None, out_dir: Path) -> list[Path]:
@@ -217,17 +226,11 @@ def generate_clips_veo(prompts: list[str], ref_image: str | None, out_dir: Path)
     # pattern 429s on the second create and strands paid generations
     paths = []
     for i, p in enumerate(prompts):
-        base = p.replace("@image1", "the reference image")
-        quiet = _AUDIO_WORDS.sub("steaming", base)
-        # Rejections are uncharged, so retry aggressively: flaky-filter
-        # retries first, then progressively quieter prompt variants
-        variants = [
-            base + VEO_AUDIO_NOTE,
-            base + VEO_AUDIO_NOTE,
-            base,
-            quiet + VEO_AUDIO_NOTE,
-            quiet,
-        ]
+        # The audio filter false-positives non-deterministically and rejections
+        # are uncharged (googleapis/js-genai#1272) — retry the same request;
+        # last attempts drop our audio line in case it is the trigger
+        bare = p.replace(VEO_AUDIO_LINE, "").strip()
+        variants = [p, p, p, bare, bare]
         path = out_dir / f"gen{i:02d}.mp4"
         for attempt, prompt in enumerate(variants):
             try:
