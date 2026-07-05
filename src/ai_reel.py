@@ -33,7 +33,10 @@ TARGET_SECONDS = int(os.environ.get("REEL_SECONDS") or "24")
 GEN_SECONDS = 12  # one generation = 3 beats x 4s
 BEATS_PER_GEN = 3
 BEAT_SECONDS = GEN_SECONDS // BEATS_PER_GEN
-CREDITS_PER_SECOND = 9.5  # measured for seedance-2-mini @480p
+# Measured burn rates: mini@480p 9.5, seedance-2@720p 41.0; mini@720p ~19 (2x of 480p
+# per Kie pricing). Set KIE_CREDITS_PER_SECOND alongside model/resolution changes so
+# the budget check below doesn't start reels it can't afford to finish.
+CREDITS_PER_SECOND = float(os.environ.get("KIE_CREDITS_PER_SECOND") or "19")
 
 REEL_W, REEL_H = 1080, 1920
 FPS = 30
