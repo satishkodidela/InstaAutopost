@@ -12,8 +12,10 @@ import time
 import requests
 
 VEO_MODEL = os.environ.get("VEO_MODEL") or "veo-3.1-fast-generate-preview"
-# Cooking shots show hands, which Veo treats as person content
-PERSON_GENERATION = os.environ.get("VEO_PERSON_GENERATION") or "allow_adult"
+# Veo allows different person_generation values per mode (text-to-video only
+# takes allow_all, image modes only allow_adult) — omit unless overridden so
+# the API applies the right per-mode default
+PERSON_GENERATION = os.environ.get("VEO_PERSON_GENERATION")
 
 
 def make_client():
@@ -46,8 +48,9 @@ def start_generation(client, prompt: str, ref_image_url: str | None, duration_s:
         resolution="720p",
         duration_seconds=duration_s,
         number_of_videos=1,
-        person_generation=PERSON_GENERATION,
     )
+    if PERSON_GENERATION:
+        config.person_generation = PERSON_GENERATION
     if ref_image_url:
         config.reference_images = [_reference_image(ref_image_url)]
     return client.models.generate_videos(model=VEO_MODEL, prompt=prompt, config=config)
