@@ -133,5 +133,14 @@
     "format": "carousel",
     "kind": null,
     "voiceover": null
+  },
+  {
+    "date": "2026-07-07",
+    "name": "Pulihora",
+    "category": "Rice",
+    "area": "Telugu",
+    "format": "reel",
+    "kind": "ai",
+    "voiceover": "te"
   }
 ]
