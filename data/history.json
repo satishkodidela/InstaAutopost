@@ -178,5 +178,14 @@
     "format": "carousel",
     "kind": null,
     "voiceover": null
+  },
+  {
+    "date": "2026-07-11",
+    "name": "Aratikaya Vepudu",
+    "category": "Curry",
+    "area": "Telugu",
+    "format": "reel",
+    "kind": "ai",
+    "voiceover": "te"
   }
 ]
