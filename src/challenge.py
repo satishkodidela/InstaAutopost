@@ -10,16 +10,20 @@ Config: recipes/challenges/<slug>.json —
   "prefer": ["dal", ...], "avoid": ["deep fry", ...]   // optional picker hints
 }
 
-State: data/challenge.json (committed by the workflow like posted.json) —
+State: data/challenge.json (committed by the challenge workflow) —
 {"slug": ..., "day": N, "plan": [bank stems], "done": bool}
 
-Start a challenge by committing data/challenge.json as {"slug": "healthy-7"}
-(or set CHALLENGE=healthy-7 for one run to create it). The first run
-auto-picks and orders the menu from the recipe bank — Gemini ranks the bank
-for the angle, keyword scoring is the fallback — then each successful post
-advances the day. After the last day the state is marked done and normal
-rotation resumes. While active, the challenge takes priority over the
-owner queue and the post format is forced to reel (POST_FORMAT still wins).
+Activation is env-scoped, NOT file-scoped: a challenge runs only when a
+workflow sets CHALLENGE=<slug>. The daily Instagram post never sets it, so
+it is fully insulated — a committed data/challenge.json can't divert it.
+The state file only persists progress (day/plan/done) between runs of the
+dedicated challenge workflow.
+
+On the first run the menu is auto-picked and ordered from the recipe bank
+(Gemini ranks it for the angle; keyword scoring is the fallback), then each
+successful post advances the day. After the last day the state is marked
+done. While active, the challenge takes priority over the owner queue and
+the post format is forced to reel (POST_FORMAT still wins).
 """
 
 import json
@@ -46,19 +50,32 @@ def _state_path(root: Path) -> Path:
     return root / "data" / "challenge.json"
 
 
+def opted_in() -> bool:
+    """True when the running workflow asked for a challenge (CHALLENGE set)."""
+    return bool(os.environ.get("CHALLENGE"))
+
+
 def active_challenge(root: Path) -> tuple[dict, dict] | None:
-    """(config, state) while a challenge is running, else None."""
-    path = _state_path(root)
-    state = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
-    if state is None and os.environ.get("CHALLENGE"):
-        state = {"slug": os.environ["CHALLENGE"]}
-    if not state or state.get("done"):
+    """(config, state) when a challenge workflow opted in and it isn't finished.
+
+    Env-gated so the daily post workflow (which never sets CHALLENGE) is
+    never diverted, even with data/challenge.json present in the repo.
+    """
+    slug = os.environ.get("CHALLENGE")
+    if not slug:
         return None
-    cfg_path = root / "recipes" / "challenges" / f"{state['slug']}.json"
+    cfg_path = root / "recipes" / "challenges" / f"{slug}.json"
     if not cfg_path.exists():
-        print(f"Challenge config missing: {cfg_path.name}; ignoring state")
+        print(f"Challenge config missing: {cfg_path.name}; skipping")
         return None
     config = json.loads(cfg_path.read_text(encoding="utf-8"))
+    path = _state_path(root)
+    state = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+    # Fresh start, or the workflow switched to a different challenge slug
+    if not state or state.get("slug") != slug:
+        state = {"slug": slug, "day": 1}
+    if state.get("done"):
+        return None
     state.setdefault("day", 1)
     return config, state
 

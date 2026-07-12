@@ -1,0 +1,97 @@
+name: Challenge Instagram post
+
+# A themed multi-day series (e.g. the 7-day Healthy Telugu Week), kept
+# fully separate from the Daily Instagram recipe post. Activation is
+# env-scoped: this workflow sets CHALLENGE, the daily workflow never does,
+# so the two never interfere. Each run posts the next challenge day and
+# advances data/challenge.json; after the final day it stops on its own.
+#
+# Manual by design so it can't collide with the daily 8 AM post. To post a
+# challenge day, run this workflow (Actions tab -> Run workflow). If you'd
+# rather it run itself for the whole week, uncomment the schedule below and
+# pause the daily workflow for the duration.
+
+on:
+  workflow_dispatch:
+    inputs:
+      slug:
+        description: "Challenge slug (config in recipes/challenges/<slug>.json)"
+        required: true
+        default: "healthy-7"
+      require_reel:
+        description: "Fail the run if the reel can't be made (no carousel fallback)"
+        required: false
+        default: false
+        type: boolean
+  # schedule:
+  #   # 6:00 PM IST (12:30 PM UTC). Enable for a self-running series and
+  #   # pause daily-post.yml so you don't post twice a day.
+  #   - cron: "30 12 * * *"
+
+permissions:
+  contents: write
+
+# Serialize with itself so two runs can't advance the day counter at once
+concurrency:
+  group: challenge-post
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate challenge reel and caption
+        env:
+          # Activates challenge mode; default to healthy-7 when scheduled
+          CHALLENGE: ${{ inputs.slug || 'healthy-7' }}
+          KIE_API_KEY: ${{ secrets.KIE_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SARVAM_API_KEY: ${{ secrets.SARVAM_API_KEY }}
+          REQUIRE_REEL: ${{ inputs.require_reel == true && '1' || '' }}
+          # Tunables — Settings -> Secrets and variables -> Variables
+          IG_HANDLE: ${{ vars.IG_HANDLE }}
+          REEL_SECONDS: ${{ vars.REEL_SECONDS }}
+          SHOT_SECONDS: ${{ vars.SHOT_SECONDS }}
+          VIDEO_BACKEND: ${{ vars.VIDEO_BACKEND }}
+          KIE_RESOLUTION: ${{ vars.KIE_RESOLUTION }}
+          KIE_SEEDANCE_MODEL: ${{ vars.KIE_SEEDANCE_MODEL }}
+          VEO_MODEL: ${{ vars.VEO_MODEL }}
+          SARVAM_SPEAKER: ${{ vars.SARVAM_SPEAKER }}
+        run: python -u src/generate.py
+
+      - name: Clean up old media (keep repo lean)
+        run: python src/cleanup.py
+
+      - name: Commit and push (Instagram needs a public URL)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A posts/ data/ recipes/
+          # No changes means the series is finished (generate.py posted nothing)
+          if git diff --cached --quiet; then
+            echo "Nothing to commit — challenge finished or no post produced."
+            exit 0
+          fi
+          git commit -m "Challenge post $(TZ=Asia/Kolkata date +%F)"
+          git push
+
+      - name: Publish to Instagram
+        env:
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+        run: |
+          today="$(TZ=Asia/Kolkata date +%F)"
+          if ls "posts/${today}".* >/dev/null 2>&1; then
+            python src/publish.py
+          else
+            echo "No post generated today; skipping publish."
+          fi
