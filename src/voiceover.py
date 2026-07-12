@@ -1,15 +1,27 @@
 """Voiceover for the daily reel.
 
-Preferred: Telugu — the English script is translated and voiced via
-Sarvam AI (Bulbul v3) when SARVAM_API_KEY is set.
-Fallback: free edge-tts (English Indian voice) when Sarvam is missing
-or fails, so the pipeline never blocks on the paid service.
+Two shapes of output, both returned as a structured result
+(``{"segments": [...], "lang", "engine"}``; see ``make_voiceover``):
+
+- Per-shot narration (preferred): one natural Telangana-Telugu line per
+  video shot (from storyboard.plan_reel), each synthesised as its own
+  segment and anchored to that shot's start time, so the voice describes
+  what is on screen. Primary engine is ElevenLabs ``eleven_v3`` (the only
+  model that speaks Telugu) in a stock or cloned voice, with character-level
+  timestamps for karaoke captions; Sarvam Bulbul v3 is the Telugu fallback.
+- Legacy single blob (last resort): the mechanical English script voiced by
+  free edge-tts when no narration and no paid Telugu engine is available, so
+  the pipeline never blocks.
+
+Priority: ElevenLabs -> Sarvam -> edge-tts -> music only.
 """
 
 import asyncio
 import base64
 import os
 import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -18,6 +30,23 @@ import requests
 SARVAM_BASE = "https://api.sarvam.ai"
 SARVAM_SPEAKER = os.environ.get("SARVAM_SPEAKER") or "shreya"
 EDGE_VOICE_EN = "en-IN-NeerjaNeural"
+
+# ElevenLabs (Telugu only renders on eleven_v3). The owner's key is stored as
+# ELEVEN_LABS_API_KEY; ELEVENLABS_API_KEY is accepted as the SDK-style alias.
+ELEVEN_BASE = "https://api.elevenlabs.io/v1"
+ELEVEN_KEY = os.environ.get("ELEVEN_LABS_API_KEY") or os.environ.get("ELEVENLABS_API_KEY")
+ELEVEN_VOICE = os.environ.get("ELEVEN_LABS_VOICE_ID") or os.environ.get("ELEVENLABS_VOICE_ID")
+ELEVEN_MODEL = os.environ.get("ELEVEN_LABS_MODEL") or "eleven_v3"
+ELEVEN_FORMAT = os.environ.get("ELEVEN_LABS_FORMAT") or "mp3_44100_128"
+
+
+def _ff() -> str:
+    exe = shutil.which("ffmpeg")
+    if exe:
+        return exe
+    import imageio_ffmpeg
+
+    return imageio_ffmpeg.get_ffmpeg_exe()
 
 def telugu_dish_name(name: str) -> str | None:
     """Telugu-script dish name for bilingual SEO captions; None if unavailable."""
@@ -166,15 +195,7 @@ def tts_sarvam_telugu(text: str, key: str, out_path: Path, pace: float = 1.0) ->
 
 
 def audio_duration(path: Path) -> float:
-    import shutil
-    import subprocess
-
-    ff = shutil.which("ffmpeg")
-    if not ff:
-        import imageio_ffmpeg
-
-        ff = imageio_ffmpeg.get_ffmpeg_exe()
-    probe = subprocess.run([ff, "-i", str(path)], capture_output=True, text=True)
+    probe = subprocess.run([_ff(), "-i", str(path)], capture_output=True, text=True)
     m = re.search(r"Duration: (\d+):(\d+):([\d.]+)", probe.stderr)
     if not m:
         return 0.0
@@ -190,16 +211,118 @@ def tts_edge(text: str, voice: str, out_path: Path) -> None:
     asyncio.run(_run())
 
 
-def make_voiceover(
-    recipe: dict, handle: str, out_dir: Path, target_seconds: float | None = None
-) -> tuple[Path, str] | None:
-    """Create the voiceover audio. Returns (path, language) or None.
+def _group_words(alignment: dict) -> list[dict]:
+    """Group ElevenLabs character alignment into words with local start/end (s)."""
+    chars = alignment.get("characters") or []
+    starts = alignment.get("character_start_times_seconds") or []
+    ends = alignment.get("character_end_times_seconds") or []
+    words: list[dict] = []
+    cur, w_start, w_end = "", None, None
+    for ch, s, e in zip(chars, starts, ends):
+        if ch.isspace():
+            if cur:
+                words.append({"text": cur, "start": w_start, "end": w_end})
+                cur = ""
+            continue
+        if not cur:
+            w_start = s
+        cur += ch
+        w_end = e
+    if cur:
+        words.append({"text": cur, "start": w_start, "end": w_end})
+    return words
 
-    Telugu via Sarvam when SARVAM_API_KEY is set; otherwise (or on
-    failure) English via free edge-tts; None if everything fails.
-    If target_seconds is given and the audio runs longer, it is
-    regenerated at a faster pace so it never outlives the video.
+
+def tts_elevenlabs(text: str, out_path: Path) -> list[dict]:
+    """Synthesise one Telugu line in the configured voice; write audio to
+    out_path and return word timings (local seconds). Uses the with-timestamps
+    route on eleven_v3 (the only ElevenLabs model that speaks Telugu)."""
+    resp = requests.post(
+        f"{ELEVEN_BASE}/text-to-speech/{ELEVEN_VOICE}/with-timestamps",
+        headers={"xi-api-key": ELEVEN_KEY, "Content-Type": "application/json"},
+        params={"output_format": ELEVEN_FORMAT},
+        json={
+            "text": text,
+            "model_id": ELEVEN_MODEL,
+            "language_code": "te",
+            "voice_settings": {
+                "stability": 0.5,
+                "similarity_boost": 0.75,
+                "style": 0.0,
+                "use_speaker_boost": True,
+            },
+        },
+        timeout=180,
+    )
+    if not resp.ok:
+        raise RuntimeError(f"ElevenLabs TTS failed: {resp.status_code} {resp.text[:300]}")
+    body = resp.json()
+    out_path.write_bytes(base64.b64decode(body["audio_base64"]))
+    return _group_words(body.get("alignment") or {})
+
+
+def _even_words(line: str, dur: float) -> list[dict]:
+    """Coarse per-word timing (even split) for engines without alignment."""
+    toks = line.split()
+    if not toks or dur <= 0:
+        return []
+    step = dur / len(toks)
+    return [{"text": t, "start": k * step, "end": (k + 1) * step} for k, t in enumerate(toks)]
+
+
+def _fit_to_shot(path: Path, dur: float, window: float, words: list[dict]) -> tuple[Path, float, list[dict]]:
+    """Gently speed a segment up so it fits its shot window without hard-cutting."""
+    if dur <= window + 0.6:
+        return path, dur, words
+    factor = min(1.2, dur / (window + 0.3))
+    fitted = path.with_name(path.stem + "_fit" + path.suffix)
+    subprocess.run(
+        [_ff(), "-y", "-i", str(path), "-filter:a", f"atempo={factor:.3f}", str(fitted)],
+        check=True, capture_output=True, text=True,
+    )
+    scaled = [{"text": w["text"], "start": w["start"] / factor, "end": w["end"] / factor} for w in words]
+    return fitted, dur / factor, scaled
+
+
+def _segmented_voice(lines: list[str], out_dir: Path, shot_seconds: float, engine: str) -> dict:
+    """One audio segment per narration line, anchored to its shot's start time.
+
+    Returns {"segments": [{path, start, end, words(global s)}], "lang", "engine"}.
     """
+    sarvam_key = os.environ.get("SARVAM_API_KEY")
+    segments = []
+    for i, line in enumerate(lines):
+        if not line:
+            continue
+        start = i * shot_seconds
+        if engine == "elevenlabs":
+            path = out_dir / f"vo_{i:02d}.mp3"
+            words = tts_elevenlabs(line, path)
+        else:  # sarvam — lines are already Telugu, so skip the en->te translate
+            path = out_dir / f"vo_{i:02d}.wav"
+            tts_sarvam_telugu(line, sarvam_key, path)
+            words = _even_words(line, audio_duration(path))
+        dur = audio_duration(path)
+        path, dur, words = _fit_to_shot(path, dur, shot_seconds, words)
+        gwords = [{"text": w["text"], "start": start + w["start"], "end": start + w["end"]} for w in words]
+        segments.append({"path": path, "start": start, "end": start + dur, "words": gwords})
+    if not segments:
+        raise RuntimeError("no narration segments produced")
+    return {"segments": segments, "lang": "te", "engine": engine}
+
+
+def _single(path: Path, lang: str, engine: str) -> dict:
+    """Wrap a legacy single-blob voiceover as one segment (400ms lead, no karaoke)."""
+    return {
+        "segments": [{"path": path, "start": 0.4, "end": 0.4 + audio_duration(path), "words": []}],
+        "lang": lang,
+        "engine": engine,
+    }
+
+
+def _blob_voiceover(recipe: dict, handle: str, out_dir: Path, target_seconds: float | None) -> dict | None:
+    """Legacy fallback: the mechanical English script, Telugu via Sarvam-translate
+    or English via edge-tts. One un-timed segment; no karaoke captions."""
     script = build_script(recipe, handle, target_seconds=target_seconds or 22.0)
     sarvam_key = os.environ.get("SARVAM_API_KEY")
 
@@ -214,7 +337,7 @@ def make_voiceover(
                     pace = round(min(1.5, dur / target_seconds + 0.05), 2)
                     print(f"  Voiceover {dur:.1f}s > {target_seconds:.0f}s target; retrying at pace {pace}")
                     tts_sarvam_telugu(telugu, sarvam_key, path, pace=pace)
-            return path, "te"
+            return _single(path, "te", "sarvam")
         except Exception as exc:
             print(f"Sarvam voiceover failed, falling back to edge-tts: {exc}", file=sys.stderr)
 
@@ -232,7 +355,41 @@ def make_voiceover(
                     await edge_tts.Communicate(script, EDGE_VOICE_EN, rate=rate).save(str(path))
 
                 asyncio.run(_run())
-        return path, "en"
+        return _single(path, "en", "edge")
     except Exception as exc:
         print(f"edge-tts voiceover failed, reel will use music only: {exc}", file=sys.stderr)
         return None
+
+
+def make_voiceover(
+    recipe: dict,
+    handle: str,
+    out_dir: Path,
+    target_seconds: float | None = None,
+    narration: list[str] | None = None,
+    shot_seconds: float = 4.0,
+) -> dict | None:
+    """Create the reel voiceover as a structured result, or None.
+
+    Result: {"segments": [{path, start, end, words}], "lang", "engine"}.
+
+    With per-shot `narration` (Telangana-Telugu lines from storyboard), each
+    line becomes its own segment anchored to `i * shot_seconds` — ElevenLabs
+    first (with word timestamps for karaoke captions), then Sarvam. Without
+    narration, or if both paid Telugu engines fail, falls back to the legacy
+    single-blob English/Sarvam voiceover (edge-tts last).
+    """
+    lines = [(l or "").strip() for l in (narration or [])]
+    if any(lines):
+        if ELEVEN_KEY and ELEVEN_VOICE:
+            try:
+                return _segmented_voice(lines, out_dir, shot_seconds, "elevenlabs")
+            except Exception as exc:
+                print(f"ElevenLabs voiceover failed, trying Sarvam: {exc}", file=sys.stderr)
+        if os.environ.get("SARVAM_API_KEY"):
+            try:
+                return _segmented_voice(lines, out_dir, shot_seconds, "sarvam")
+            except Exception as exc:
+                print(f"Sarvam segmented voiceover failed, falling back: {exc}", file=sys.stderr)
+
+    return _blob_voiceover(recipe, handle, out_dir, target_seconds)

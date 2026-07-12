@@ -55,6 +55,7 @@ jobs:
           CHALLENGE: ${{ inputs.slug || 'healthy-7' }}
           KIE_API_KEY: ${{ secrets.KIE_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ELEVEN_LABS_API_KEY: ${{ secrets.ELEVEN_LABS_API_KEY }}
           SARVAM_API_KEY: ${{ secrets.SARVAM_API_KEY }}
           REQUIRE_REEL: ${{ inputs.require_reel == true && '1' || '' }}
           # Tunables — Settings -> Secrets and variables -> Variables
@@ -66,6 +67,9 @@ jobs:
           KIE_SEEDANCE_MODEL: ${{ vars.KIE_SEEDANCE_MODEL }}
           VEO_MODEL: ${{ vars.VEO_MODEL }}
           SARVAM_SPEAKER: ${{ vars.SARVAM_SPEAKER }}
+          ELEVEN_LABS_VOICE_ID: ${{ vars.ELEVEN_LABS_VOICE_ID }}
+          ELEVEN_LABS_MODEL: ${{ vars.ELEVEN_LABS_MODEL }}
+          REEL_CAPTIONS: ${{ vars.REEL_CAPTIONS }}
         run: python -u src/generate.py
 
       - name: Clean up old media (keep repo lean)

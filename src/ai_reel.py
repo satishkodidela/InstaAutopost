@@ -69,6 +69,12 @@ STYLE_BLOCK = (
 )
 NEGATIVE = "Avoid jitter, warped hands, artificial speed changes, fast motion."
 
+# Karaoke captions (Telugu). Bundled Noto Sans Telugu so libass renders the
+# script on CI (ubuntu ships no Telugu font). ASS colours are &HAABBGGRR.
+FONTS_DIR = Path(__file__).resolve().parent.parent / "assets" / "fonts"
+CAPTION_FONT_FILE = FONTS_DIR / "NotoSansTelugu-Bold.ttf"
+CAPTION_FONT_NAME = "Noto Sans Telugu"
+
 # Proven appetite-hook beats, chosen by keyword match against recipe steps
 HOOK_BEATS = [
     (("tadka", "temper", "mustard seeds", "curry leaves"),
@@ -394,12 +400,63 @@ def _has_audio(ff: str, clip: Path) -> bool:
     return " Audio:" in probe.stderr
 
 
+def _ass_time(t: float) -> str:
+    t = max(0.0, t)
+    h = int(t // 3600)
+    m = int((t % 3600) // 60)
+    s = t % 60
+    return f"{h}:{m:02d}:{s:05.2f}"
+
+
+def _write_ass(segments: list[dict], ass_path: Path, n_shots: int) -> bool:
+    """Word-timed karaoke captions from voiceover segments. Skips the shot-2
+    (ingredient list) and final (follow bar) windows to avoid overlay clashes.
+    Returns False if there is nothing to caption."""
+    events = []
+    for seg in segments:
+        words = seg.get("words") or []
+        if not words:
+            continue
+        idx = round(seg["start"] / BEAT_SECONDS)
+        if idx == 1 or idx == n_shots - 1:  # ingredient / follow overlays own the lower third here
+            continue
+        parts = []
+        for i, w in enumerate(words):
+            nxt = words[i + 1]["start"] if i + 1 < len(words) else w["end"]
+            dur_cs = max(1, round((nxt - w["start"]) * 100))  # fold gaps into the word for a continuous sweep
+            text = (w["text"] or "").replace("{", "").replace("}", "").replace("\n", " ")
+            parts.append(f"{{\\kf{dur_cs}}}{text} ")
+        start, end = words[0]["start"], words[-1]["end"]
+        events.append(
+            f"Dialogue: 0,{_ass_time(start)},{_ass_time(end)},Cap,,0,0,0,,{''.join(parts).rstrip()}"
+        )
+    if not events:
+        return False
+    header = (
+        "[Script Info]\nScriptType: v4.00+\n"
+        # WrapStyle 0 = smart wrapping within the L/R margins (long lines wrap
+        # to ~2 balanced lines instead of overflowing off-frame)
+        f"PlayResX: {REEL_W}\nPlayResY: {REEL_H}\nWrapStyle: 0\n\n"
+        "[V4+ Styles]\n"
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, "
+        "BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, "
+        "BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
+        # Active word = accent orange, pending = white, thick black outline, bottom-centre
+        f"Style: Cap,{CAPTION_FONT_NAME},78,&H00265DE8,&H00FFFFFF,&H00000000,&H64000000,"
+        "-1,0,0,0,100,100,0,0,1,5,1,2,150,150,430,0\n\n"
+        "[Events]\n"
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+    )
+    ass_path.write_text(header + "\n".join(events) + "\n", encoding="utf-8")
+    return True
+
+
 def assemble_reel(
     clips: list[Path],
     recipe: dict,
     handle: str,
     out_path: Path,
-    voiceover: Path | None,
+    voiceover: dict | None,
     music: Path | None,
 ) -> None:
     ff = _ffmpeg()
@@ -483,16 +540,19 @@ def assemble_reel(
         m = re.search(r"Duration: (\d+):(\d+):([\d.]+)", probe.stderr)
         video_len = float(m.group(1)) * 3600 + float(m.group(2)) * 60 + float(m.group(3))
 
-        # Mix: sizzle bed (from clips) + voiceover + optional whisper of music.
-        # Explicit -t, never -shortest (apad'd voiceover is infinite).
+        # Mix: sizzle bed (from clips) + per-shot voiceover segments (each
+        # anchored to its shot start) + optional whisper of music. Explicit
+        # -t, never -shortest. amix duration=first clamps to the sizzle bed.
+        segments = (voiceover or {}).get("segments", []) if voiceover else []
         cmd = [ff, "-y", "-i", str(base_av)]
         filters = ["[0:a]volume=0.5[siz]"]
         mix = ["[siz]"]
         idx = 1
-        if voiceover is not None:
-            cmd += ["-i", str(voiceover)]
-            filters.append(f"[{idx}:a]adelay=400|400,apad[vo]")
-            mix.append("[vo]")
+        for seg in segments:
+            cmd += ["-i", str(seg["path"])]
+            delay = int(round(seg["start"] * 1000))
+            filters.append(f"[{idx}:a]adelay={delay}|{delay}[vo{idx}]")
+            mix.append(f"[vo{idx}]")
             idx += 1
         if music is not None:
             cmd += ["-stream_loop", "-1", "-i", str(music)]
@@ -503,22 +563,53 @@ def assemble_reel(
             f"{''.join(mix)}amix=inputs={len(mix)}:duration=first:"
             f"dropout_transition=0,afade=t=out:st={max(video_len - 1.2, 0)}:d=1.2[aout]"
         )
+
+        # Karaoke captions from word timings (ElevenLabs/Sarvam). When present
+        # the final video must be re-encoded to burn subtitles, so mix audio
+        # into an intermediate first, then a caption pass produces out_path.
+        n_shots = len(clips) * BEATS_PER_GEN
+        ass_path = tmp_dir / "captions.ass"
+        want_captions = (
+            segments
+            and (os.environ.get("REEL_CAPTIONS") or "1") != "0"
+            and CAPTION_FONT_FILE.exists()
+            and _write_ass(segments, ass_path, n_shots)
+        )
+        audio_out = (tmp_dir / "av_mixed.mp4") if want_captions else out_path
         cmd += [
             "-filter_complex", ";".join(filters),
             "-map", "0:v", "-map", "[aout]",
             "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
             "-t", f"{video_len:.2f}",
-            "-movflags", "+faststart", str(out_path),
+            "-movflags", "+faststart", str(audio_out),
         ]
         subprocess.run(cmd, check=True, capture_output=True, text=True)
+
+        if want_captions:
+            # ass= resolves relative to cwd, so run in tmp_dir with fontsdir
+            # pointing at the bundled Telugu font. A burn failure must never
+            # kill the reel — fall back to the un-captioned mix.
+            try:
+                subprocess.run(
+                    [ff, "-y", "-i", str(audio_out),
+                     "-vf", f"subtitles=captions.ass:fontsdir={FONTS_DIR}",
+                     "-c:v", "libx264", "-preset", "medium", "-crf", "20",
+                     "-c:a", "copy", "-movflags", "+faststart", str(out_path)],
+                    check=True, capture_output=True, text=True, cwd=str(tmp_dir),
+                )
+            except subprocess.CalledProcessError as exc:
+                print(f"  caption burn failed ({exc.stderr[-300:] if exc.stderr else exc}); "
+                      f"posting without captions", flush=True)
+                shutil.copyfile(audio_out, out_path)
 
 
 def make_ai_reel(
     recipe: dict,
     handle: str,
     out_path: Path,
-    voiceover: Path | None,
+    voiceover: dict | None,
     music: Path | None,
+    story: list[str] | None = None,
 ) -> None:
     n_gens = max(1, round(TARGET_SECONDS / GEN_SECONDS))
 
@@ -543,8 +634,10 @@ def make_ai_reel(
 
     ref_image = recipe.get("thumb") or None
     # Per-recipe story: the shot list comes from how the dish is actually
-    # prepared (one Gemini flash call); None falls back to template beats
-    story = plan_story(recipe, n_gens * BEATS_PER_GEN, STYLE_BLOCK)
+    # prepared. generate.py plans it once (with narration) and passes the
+    # beats in; only plan here when called standalone (e.g. tests).
+    if story is None:
+        story = plan_story(recipe, n_gens * BEATS_PER_GEN, STYLE_BLOCK)
     if story:
         print(f"  story planned: {len(story)} shots", flush=True)
     # Keyframe chain (K0..Kn) for first/last-frame conditioning; images are
