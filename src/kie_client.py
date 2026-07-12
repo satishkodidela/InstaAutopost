@@ -50,7 +50,12 @@ def poll_task(task_id: str, key: str, exts: str = "mp4", timeout_s: int = 1200) 
         data = body.get("data") or {}
         state = (data.get("state") or "").lower()
         if state in ("success", "completed"):
-            blob = json.dumps(data)
+            # Search only the result payload: the record also echoes the task
+            # *inputs* under "param", whose image URLs would match first on
+            # image-to-image tasks (e.g. keyframe edits)
+            blob = data.get("resultJson") or json.dumps(
+                {k: v for k, v in data.items() if k != "param"}
+            )
             urls = re.findall(rf"https://[^\"\\\s]+?\.(?:{exts})[^\"\\\s]*", blob)
             if urls:
                 return urls[0]

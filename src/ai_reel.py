@@ -8,8 +8,16 @@ Design (per researched best practices, see FEEDBACK.md and plan):
 - ~24s total from TWO 12s generations, each holding 3 timestamped beats
   ("[0s] ... [4s] Cut to: ...") — cuts inside one generation are natively
   consistent, so the dish looks the same across shots.
-- Every generation anchored to the real dish photo via @image1
-  (reference_image_urls) + an identical style block.
+- Clip-to-clip continuity via keyframe chaining (keyframes.py): boundary
+  images K0..Kn are generated upfront and clip i runs with
+  first_frame=K[i], last_frame=K[i+1], so adjacent clips share their
+  boundary image exactly. Falls back to the single dish photo via @image1
+  (reference_image_urls) when keyframes are unavailable (REEL_KEYFRAMES=0,
+  no hero photo, no KIE_API_KEY, or generation failure).
+- Per-recipe story (storyboard.py): an LLM reads the actual recipe steps
+  and directs the shots — dish-specific hook, authentic preparation
+  moments in real cooking order. Template beats below are the fallback.
+  The kitchen set and lighting stay locked in every reel (brand look).
 - Food-motion rules: camera locked or slow push-in only, food provides the
   motion, backlit steam, hands enter from frame edge, no "fast".
 - Seamless loop: the last beat mirrors the hook framing (rewatches).
@@ -29,7 +37,9 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 from card import FONT_CANDIDATES_BOLD, _font, _wrap
+from keyframes import generate_keyframes, state_text
 from kie_client import create_task, download, get_credits, poll_task
+from storyboard import plan_story
 
 BACKEND = (os.environ.get("VIDEO_BACKEND") or "seedance").lower()
 KIE_MODEL = os.environ.get("KIE_SEEDANCE_MODEL") or "bytedance/seedance-2-mini"
@@ -50,6 +60,8 @@ ACCENT = (232, 93, 38)
 SAFE_TOP = 210
 SAFE_BOTTOM = 380
 
+# Locked brand look: one kitchen, one light, in every reel (owner decision).
+# Variety comes from the per-recipe story (storyboard.py), not the set.
 STYLE_BLOCK = (
     "Warm rustic South Indian kitchen, dark wood counter, brass and steel "
     "utensils, golden 45-degree side lighting, shallow depth of field, "
@@ -101,8 +113,20 @@ def _pick_hook_beat(steps: list[str]) -> str:
     return DEFAULT_HOOK_BEAT
 
 
-def build_generation_prompts(recipe: dict, n_gens: int) -> list[str]:
-    """n_gens multi-shot prompts; first opens with the hook, last closes the loop."""
+def build_beats(
+    recipe: dict,
+    n_gens: int,
+    hook_anchor: str = "@image1",
+    close_anchor: str = "@image1",
+    story: list[str] | None = None,
+) -> list[str]:
+    """Exactly n_gens * BEATS_PER_GEN beats.
+
+    With a story (LLM-planned shot list from storyboard.plan_story) the
+    beats are the story verbatim; otherwise the template below: hook,
+    ingredients, actions, sizzle, loop close."""
+    if story:
+        return list(story)
     name = recipe["name"]
     ing_list = ", ".join(i["name"] for i in recipe["ingredients"][:6])
     steps = recipe["steps"]
@@ -121,7 +145,7 @@ def build_generation_prompts(recipe: dict, n_gens: int) -> list[str]:
     ]
 
     hook = (
-        f"Extreme close-up of the finished {name} exactly as @image1: backlit "
+        f"Extreme close-up of the finished {name} exactly as {hook_anchor}: backlit "
         f"steam rising, a spoon lifting one portion, glossy texture. Camera: slow push-in."
     )
     ingredients = (
@@ -131,7 +155,7 @@ def build_generation_prompts(recipe: dict, n_gens: int) -> list[str]:
     )
     sizzle = f"{_pick_hook_beat(steps)}, making {name}, continuing the same cooking process. Camera: fixed."
     loop_close = (
-        f"The finished {name} exactly as @image1, same framing as the opening "
+        f"The finished {name} exactly as {close_anchor}, same framing as the opening "
         f"shot, steam rising, garnished. Camera: slow push-in."
     )
 
@@ -142,10 +166,45 @@ def build_generation_prompts(recipe: dict, n_gens: int) -> list[str]:
         beats.pop(2)
     while len(beats) < want:
         beats.insert(2, f"macro texture close-up of {name}, steam curling. Camera: fixed.")
+    return beats
+
+
+def build_generation_prompts(
+    recipe: dict,
+    n_gens: int,
+    chained: bool = False,
+    story: list[str] | None = None,
+) -> list[str]:
+    """n_gens multi-shot prompts; first opens with the hook, last closes the loop.
+
+    chained=True means every clip runs with first/last keyframes, so prompts
+    describe motion between the provided frames instead of anchoring to the
+    single @image1/reference photo. Story beats carry their own shot text,
+    so the frame anchors only apply to template beats.
+    """
+    if chained:
+        beats = build_beats(
+            recipe, n_gens,
+            hook_anchor="the provided first frame",
+            close_anchor="the provided last frame",
+            story=story,
+        )
+    else:
+        beats = build_beats(recipe, n_gens, story=story)
+    style = STYLE_BLOCK
 
     prompts = []
     for g in range(n_gens):
         chunk = beats[g * BEATS_PER_GEN : (g + 1) * BEATS_PER_GEN]
+        # The last frame only lands if the prompt agrees with it: without
+        # this, the final timed beat describes a different shot and wins
+        # over the last_frame image (verified against seedance-2-mini)
+        landing = ""
+        if chained and g < n_gens - 1:
+            landing = (
+                f" The final moment matches the provided last frame exactly: "
+                f"{state_text(beats[(g + 1) * BEATS_PER_GEN])}."
+            )
         if BACKEND == "veo":
             # Veo's documented multi-shot syntax is [MM:SS-MM:SS] ranges;
             # exclusions are phrased positively, not as an avoid-list
@@ -153,23 +212,33 @@ def build_generation_prompts(recipe: dict, n_gens: int) -> list[str]:
                 f"[00:{i * BEAT_SECONDS:02d}-00:{(i + 1) * BEAT_SECONDS:02d}] {beat}"
                 for i, beat in enumerate(chunk)
             )
-            prompts.append(
-                f"Use the reference image for the dish's exact appearance and "
-                f"plating. {STYLE_BLOCK} {timed} {VEO_AUDIO_LINE}"
+            header = (
+                "The video starts on the provided first frame and ends on the "
+                "provided last frame. "
+                if chained
+                else "Use the reference image for the dish's exact appearance and plating. "
             )
+            prompts.append(f"{header}{style} {timed}{landing} {VEO_AUDIO_LINE}")
         else:
             timed = " ".join(
                 f"[{i * BEAT_SECONDS}s]{' Cut to:' if i else ''} {beat}"
                 for i, beat in enumerate(chunk)
             )
-            prompts.append(
-                f"Use @image1 for the dish's exact appearance and plating. "
-                f"{STYLE_BLOCK} {timed} {NEGATIVE}"
+            header = (
+                "Animate from the provided first frame to the provided last frame. "
+                if chained
+                else "Use @image1 for the dish's exact appearance and plating. "
             )
+            prompts.append(f"{header}{style} {timed}{landing} {NEGATIVE}")
     return prompts
 
 
-def _task_input(prompt: str, ref_image: str | None, with_audio: bool) -> dict:
+def _task_input(
+    prompt: str,
+    ref_image: str | None,
+    with_audio: bool,
+    frames: tuple[str, str] | None = None,
+) -> dict:
     task_input = {
         "prompt": prompt,
         "duration": GEN_SECONDS,
@@ -177,15 +246,26 @@ def _task_input(prompt: str, ref_image: str | None, with_audio: bool) -> dict:
         "aspect_ratio": "9:16",
         "generate_audio": with_audio,
     }
-    if ref_image:
+    if frames:
+        task_input["first_frame_url"], task_input["last_frame_url"] = frames
+    elif ref_image:
         task_input["reference_image_urls"] = [ref_image]
     return task_input
 
 
-def generate_clips(prompts: list[str], ref_image: str | None, key: str, out_dir: Path) -> list[Path]:
-    task_ids = [
-        create_task(KIE_MODEL, _task_input(p, ref_image, True), key) for p in prompts
-    ]
+def generate_clips(
+    prompts: list[str],
+    ref_image: str | None,
+    key: str,
+    out_dir: Path,
+    keyframes: list[str] | None = None,
+) -> list[Path]:
+    def _input(i: int, with_audio: bool) -> dict:
+        frames = (keyframes[i], keyframes[i + 1]) if keyframes else None
+        return _task_input(prompts[i], ref_image, with_audio, frames)
+
+    # Keyframes exist upfront, so clip creation stays parallel even when chained
+    task_ids = [create_task(KIE_MODEL, _input(i, True), key) for i in range(len(prompts))]
     print(f"  {len(task_ids)} Seedance generations created, waiting...", flush=True)
     paths = []
     for i, task_id in enumerate(task_ids):
@@ -197,7 +277,7 @@ def generate_clips(prompts: list[str], ref_image: str | None, key: str, out_dir:
             if "audio" not in str(exc).lower():
                 raise
             print(f"  generation {i + 1} hit the audio filter; retrying without audio", flush=True)
-            retry_id = create_task(KIE_MODEL, _task_input(prompts[i], ref_image, False), key)
+            retry_id = create_task(KIE_MODEL, _input(i, False), key)
             url = poll_task(retry_id, key, exts="mp4")
         path = out_dir / f"gen{i:02d}.mp4"
         download(url, path)
@@ -215,12 +295,24 @@ VEO_AUDIO_LINE = (
 )
 
 
-def generate_clips_veo(prompts: list[str], ref_image: str | None, out_dir: Path) -> list[Path]:
-    from veo_client import build_reference, make_client, start_generation, wait_and_save
+def generate_clips_veo(
+    prompts: list[str],
+    ref_image: str | None,
+    out_dir: Path,
+    keyframes: list[str] | None = None,
+) -> list[Path]:
+    from veo_client import build_reference, fetch_image, make_client, start_generation, wait_and_save
 
     client = make_client()
-    # Veo has no @image1 syntax; the dish photo rides along as a reference image
-    reference = build_reference(ref_image) if ref_image else None
+    # Chained mode conditions on first/last keyframes; Veo doesn't support
+    # combining those with reference_images, so the dish photo only rides
+    # along as an "asset" reference when there are no keyframes
+    reference = None
+    frames = None
+    if keyframes:
+        frames = [fetch_image(u) for u in keyframes]
+    elif ref_image:
+        reference = build_reference(ref_image)
     # Strictly sequential (create -> finish -> next): Tier 1 Veo rate limits
     # are a couple of requests/minute, so the Kie-style create-all-then-poll
     # pattern 429s on the second create and strands paid generations
@@ -232,9 +324,11 @@ def generate_clips_veo(prompts: list[str], ref_image: str | None, out_dir: Path)
         bare = p.replace(VEO_AUDIO_LINE, "").strip()
         variants = [p, p, p, bare, bare]
         path = out_dir / f"gen{i:02d}.mp4"
+        first = frames[i] if frames else None
+        last = frames[i + 1] if frames else None
         for attempt, prompt in enumerate(variants):
             try:
-                op = start_generation(client, prompt, reference, GEN_SECONDS)
+                op = start_generation(client, prompt, reference, GEN_SECONDS, first, last)
                 wait_and_save(client, op, path)
                 break
             except RuntimeError as exc:
@@ -430,7 +524,9 @@ def make_ai_reel(
 
     key = None
     if BACKEND != "veo":
-        # Kie exposes a credit balance; Gemini billing has no equivalent check
+        # Kie exposes a credit balance; Gemini billing has no equivalent check.
+        # Keyframes add a few image generations per reel on top — cents next
+        # to the video burn, so the gate only budgets video seconds.
         key = os.environ["KIE_API_KEY"]
         per_gen = GEN_SECONDS * CREDITS_PER_SECOND
         balance = get_credits(key)
@@ -445,11 +541,35 @@ def make_ai_reel(
         if balance - n_gens * per_gen < 2 * n_gens * per_gen:
             print(f"  WARNING: Kie credits low ({balance:.0f}) — under ~2 days of reels left. Top up soon.", flush=True)
 
-    prompts = build_generation_prompts(recipe, n_gens)
     ref_image = recipe.get("thumb") or None
+    # Per-recipe story: the shot list comes from how the dish is actually
+    # prepared (one Gemini flash call); None falls back to template beats
+    story = plan_story(recipe, n_gens * BEATS_PER_GEN, STYLE_BLOCK)
+    if story:
+        print(f"  story planned: {len(story)} shots", flush=True)
+    # Keyframe chain (K0..Kn) for first/last-frame conditioning; images are
+    # generated on Kie regardless of video backend. Any failure falls back
+    # to the single-reference-image path rather than killing the reel.
+    keyframes = None
+    kie_key = key or os.environ.get("KIE_API_KEY")
+    # n_gens < 2 has no clip boundary to sync (and beat trimming drops the
+    # loop-close beat the final keyframe is aligned with) — skip chaining
+    if n_gens >= 2 and ref_image and kie_key and (os.environ.get("REEL_KEYFRAMES") or "1") != "0":
+        try:
+            beats = build_beats(recipe, n_gens, story=story)
+            keyframes = generate_keyframes(
+                recipe, beats, BEATS_PER_GEN, n_gens, STYLE_BLOCK, ref_image, kie_key
+            )
+            print(f"  {len(keyframes)} boundary keyframes generated", flush=True)
+        except Exception as exc:
+            print(f"  keyframes failed ({exc}); using single reference image", flush=True)
+
+    prompts = build_generation_prompts(
+        recipe, n_gens, chained=keyframes is not None, story=story
+    )
     with tempfile.TemporaryDirectory() as tmp:
         if BACKEND == "veo":
-            clips = generate_clips_veo(prompts, ref_image, Path(tmp))
+            clips = generate_clips_veo(prompts, ref_image, Path(tmp), keyframes)
         else:
-            clips = generate_clips(prompts, ref_image, key, Path(tmp))
+            clips = generate_clips(prompts, ref_image, key, Path(tmp), keyframes)
         assemble_reel(clips, recipe, handle, out_path, voiceover, music)
