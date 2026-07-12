@@ -56,8 +56,8 @@ Narration ("vo") rules — a real person talking to a friend, NOT reading steps:
   Hyderabad/Telangana dialect. Use its words and verb endings: మస్తు, గిట్ల,
   ఇగ, పోదాం, చేద్దాం, ఏందీ, ఉంటది, తీస్కో, కలిపేయ్, సుడు, భలే. NEVER formal or
   literary Telugu, and NEVER English sentences.
-- ONE short line per shot, about 6-7 words — it must be speakable inside a
-  4-second shot.
+- ONE short line per shot, about 5-6 words — it must be speakable, unhurried,
+  inside a 4-second shot. Keep it breezy, not crammed.
 - Each line talks about what THAT shot shows, in real cooking order — like
   you're narrating your own cooking to a friend, warm and a little playful.
 - Spell any quantity as an everyday word (కొంచెం, కాస్త, గుప్పెడు), never
@@ -85,8 +85,11 @@ Rules — realism above all:
   more striking for this recipe).
 - Shot 2 shows the key ingredients laid out in small brass bowls on the
   counter (a text overlay lists them during this shot).
-- Middle shots: the defining preparation moments. One precise action per
-  shot, hands entering from the frame edge, food providing the motion.
+- Middle shots: the defining preparation moments IN ORDER, as one continuous
+  process — each shot advancing the cooking from the previous, no jumps. Pick
+  the most important transformations and show the dish visibly progressing.
+- The shot BEFORE the last must show the dish almost done (nearly cooked /
+  plating up), so the final reveal feels earned, not sudden.
 - The final shot recreates shot 1's framing with the finished {name},
   garnished and steaming, for a seamless loop.
 - Fixed setting, identical in every shot: {style_block}
