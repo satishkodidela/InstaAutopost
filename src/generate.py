@@ -219,19 +219,24 @@ def main() -> None:
 
     festival = None
     challenge = challenge_mod.active_challenge(root)
+    # The dedicated challenge workflow opts in via CHALLENGE. If it opted in
+    # but nothing is active (series finished, or config missing), don't post
+    # a random daily recipe from the challenge workflow — just stop.
+    if challenge_mod.opted_in() and challenge is None:
+        print("Challenge finished or unavailable; nothing to post.")
+        return
     try:
         # Source order: active challenge -> owner queue -> South Indian bank
         # -> TheMealDB fallback
         recipe = None
         if challenge:
             config, ch_state = challenge
-            try:
-                stem = challenge_mod.pick_stem(root, config, ch_state, set(posted))
-                recipe = _bank_recipe_from(root / "recipes" / "bank" / f"{stem}.json")
-                print(f"Challenge '{config['name']}' day {ch_state['day']}/{config['days']}: {recipe['name']}")
-            except Exception as exc:
-                print(f"Challenge pick failed ({exc}); normal rotation", file=sys.stderr)
-                challenge = None
+            # This branch runs only in the dedicated challenge workflow. If
+            # the challenge dish can't be produced, fail the run rather than
+            # posting off-theme content — the day is not silently advanced.
+            stem = challenge_mod.pick_stem(root, config, ch_state, set(posted))
+            recipe = _bank_recipe_from(root / "recipes" / "bank" / f"{stem}.json")
+            print(f"Challenge '{config['name']}' day {ch_state['day']}/{config['days']}: {recipe['name']}")
         if recipe is None:
             recipe = pop_queued_recipe(root)
         if recipe is None:
