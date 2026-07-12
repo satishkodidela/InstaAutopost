@@ -311,15 +311,26 @@ def main() -> None:
         video_path = posts_dir / f"{date_str}.mp4"
 
         with tempfile.TemporaryDirectory() as work:
-            # VO must fit inside the video with room for the delay + fade
-            from ai_reel import GEN_SECONDS, TARGET_SECONDS
+            from ai_reel import BEAT_SECONDS, BEATS_PER_GEN, GEN_SECONDS, STYLE_BLOCK, TARGET_SECONDS
+            from storyboard import plan_reel
 
             n_gens = max(1, round(TARGET_SECONDS / GEN_SECONDS))
+            # Plan the story ONCE: the same shot list drives both the video
+            # beats and the per-shot Telangana narration, so the voice tracks
+            # what is on screen. None => template beats + legacy English script.
+            plan = plan_reel(recipe, n_gens * BEATS_PER_GEN, STYLE_BLOCK)
+            narration = plan["narration"] if plan else None
+            story = plan["beats"] if plan else None
+
+            # VO must fit inside the video with room for the delay + fade
             vo_budget = n_gens * GEN_SECONDS - 2.0
-            vo = make_voiceover(recipe, HANDLE, Path(work), target_seconds=vo_budget)
-            vo_path = None
-            if vo is not None:
-                vo_path, vo_lang = vo
+            vo = make_voiceover(
+                recipe, HANDLE, Path(work), target_seconds=vo_budget,
+                narration=narration, shot_seconds=BEAT_SECONDS,
+            )
+            vo_lang = vo["lang"] if vo else None
+            if vo:
+                print(f"  voiceover: {vo['engine']} ({vo['lang']}), {len(vo['segments'])} segment(s)", flush=True)
 
             try:
                 from ai_reel import BACKEND
@@ -329,7 +340,7 @@ def main() -> None:
                     raise RuntimeError(f"{key_var} not set")
                 label = "Veo 3.1 (Gemini)" if BACKEND == "veo" else "Kie.ai (Seedance)"
                 print(f"Generating AI shot reel via {label}...", flush=True)
-                make_ai_reel(recipe, HANDLE, video_path, vo_path, music)
+                make_ai_reel(recipe, HANDLE, video_path, vo, music, story=story)
                 reel_kind = "ai"
             except Exception as exc:
                 # Test mode: fail the run rather than publish a fallback

@@ -60,6 +60,7 @@ jobs:
         env:
           KIE_API_KEY: ${{ secrets.KIE_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ELEVEN_LABS_API_KEY: ${{ secrets.ELEVEN_LABS_API_KEY }}
           SARVAM_API_KEY: ${{ secrets.SARVAM_API_KEY }}
           POST_FORMAT: ${{ inputs.format }}
           IG_HANDLE: ${{ vars.IG_HANDLE }}
@@ -70,6 +71,9 @@ jobs:
           KIE_SEEDANCE_MODEL: ${{ vars.KIE_SEEDANCE_MODEL }}
           VEO_MODEL: ${{ vars.VEO_MODEL }}
           SARVAM_SPEAKER: ${{ vars.SARVAM_SPEAKER }}
+          ELEVEN_LABS_VOICE_ID: ${{ vars.ELEVEN_LABS_VOICE_ID }}
+          ELEVEN_LABS_MODEL: ${{ vars.ELEVEN_LABS_MODEL }}
+          REEL_CAPTIONS: ${{ vars.REEL_CAPTIONS }}
         run: python -u src/generate.py
 
       - name: Commit and push media (Instagram needs public URLs)
