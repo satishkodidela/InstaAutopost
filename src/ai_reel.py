@@ -569,9 +569,10 @@ def assemble_reel(
         # into an intermediate first, then a caption pass produces out_path.
         n_shots = len(clips) * BEATS_PER_GEN
         ass_path = tmp_dir / "captions.ass"
+        # Captions are opt-in (REEL_CAPTIONS=1); off by default per owner.
         want_captions = (
-            segments
-            and (os.environ.get("REEL_CAPTIONS") or "1") != "0"
+            os.environ.get("REEL_CAPTIONS") == "1"
+            and segments
             and CAPTION_FONT_FILE.exists()
             and _write_ass(segments, ass_path, n_shots)
         )

@@ -38,6 +38,8 @@ ELEVEN_KEY = os.environ.get("ELEVEN_LABS_API_KEY") or os.environ.get("ELEVENLABS
 ELEVEN_VOICE = os.environ.get("ELEVEN_LABS_VOICE_ID") or os.environ.get("ELEVENLABS_VOICE_ID")
 ELEVEN_MODEL = os.environ.get("ELEVEN_LABS_MODEL") or "eleven_v3"
 ELEVEN_FORMAT = os.environ.get("ELEVEN_LABS_FORMAT") or "mp3_44100_128"
+# Lower stability = more expressive/conversational (less flat/robotic).
+ELEVEN_STABILITY = float(os.environ.get("ELEVEN_LABS_STABILITY") or "0.35")
 
 
 def _ff() -> str:
@@ -233,25 +235,37 @@ def _group_words(alignment: dict) -> list[dict]:
     return words
 
 
-def tts_elevenlabs(text: str, out_path: Path) -> list[dict]:
+def tts_elevenlabs(
+    text: str, out_path: Path, previous_text: str | None = None, next_text: str | None = None
+) -> list[dict]:
     """Synthesise one Telugu line in the configured voice; write audio to
     out_path and return word timings (local seconds). Uses the with-timestamps
-    route on eleven_v3 (the only ElevenLabs model that speaks Telugu)."""
+    route on eleven_v3 (the only ElevenLabs model that speaks Telugu).
+
+    previous_text/next_text give the model the surrounding narration so each
+    line is spoken with natural prosody/continuity instead of in isolation."""
+    body = {
+        "text": text,
+        "model_id": ELEVEN_MODEL,
+        "language_code": "te",
+        "voice_settings": {
+            "stability": ELEVEN_STABILITY,
+            "similarity_boost": 0.8,
+            "use_speaker_boost": True,
+        },
+    }
+    # previous_text/next_text give cross-line prosody but eleven_v3 rejects
+    # them ("unsupported_model"); only send on models that accept them.
+    if "v3" not in ELEVEN_MODEL:
+        if previous_text:
+            body["previous_text"] = previous_text
+        if next_text:
+            body["next_text"] = next_text
     resp = requests.post(
         f"{ELEVEN_BASE}/text-to-speech/{ELEVEN_VOICE}/with-timestamps",
         headers={"xi-api-key": ELEVEN_KEY, "Content-Type": "application/json"},
         params={"output_format": ELEVEN_FORMAT},
-        json={
-            "text": text,
-            "model_id": ELEVEN_MODEL,
-            "language_code": "te",
-            "voice_settings": {
-                "stability": 0.5,
-                "similarity_boost": 0.75,
-                "style": 0.0,
-                "use_speaker_boost": True,
-            },
-        },
+        json=body,
         timeout=180,
     )
     if not resp.ok:
@@ -271,10 +285,12 @@ def _even_words(line: str, dur: float) -> list[dict]:
 
 
 def _fit_to_shot(path: Path, dur: float, window: float, words: list[dict]) -> tuple[Path, float, list[dict]]:
-    """Gently speed a segment up so it fits its shot window without hard-cutting."""
-    if dur <= window + 0.6:
+    """Only compress a segment that badly overruns its shot; a little overrun
+    into the next shot is fine and sounds far more natural than speeding up.
+    Speeding beyond ~1.1x reads as rushed, so cap it there."""
+    if dur <= window + 1.4:
         return path, dur, words
-    factor = min(1.2, dur / (window + 0.3))
+    factor = min(1.1, dur / (window + 1.0))
     fitted = path.with_name(path.stem + "_fit" + path.suffix)
     subprocess.run(
         [_ff(), "-y", "-i", str(path), "-filter:a", f"atempo={factor:.3f}", str(fitted)],
@@ -297,7 +313,10 @@ def _segmented_voice(lines: list[str], out_dir: Path, shot_seconds: float, engin
         start = i * shot_seconds
         if engine == "elevenlabs":
             path = out_dir / f"vo_{i:02d}.mp3"
-            words = tts_elevenlabs(line, path)
+            # Feed the neighbouring lines so the delivery flows across shots
+            prev_line = next((lines[j] for j in range(i - 1, -1, -1) if lines[j]), None)
+            next_line = next((lines[j] for j in range(i + 1, len(lines)) if lines[j]), None)
+            words = tts_elevenlabs(line, path, previous_text=prev_line, next_text=next_line)
         else:  # sarvam — lines are already Telugu, so skip the en->te translate
             path = out_dir / f"vo_{i:02d}.wav"
             tts_sarvam_telugu(line, sarvam_key, path)
