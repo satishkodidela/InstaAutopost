@@ -64,7 +64,16 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A posts/ data/ recipes/
           git commit -m "Daily post $(TZ=Asia/Kolkata date +%F)"
-          git push
+          # Survive a moving main (mid-day PR merges, metrics/other workflows):
+          # rebase our post commit onto the latest remote and retry, so the push
+          # isn't rejected non-fast-forward and the day still publishes.
+          for attempt in 1 2 3; do
+            git push && exit 0
+            echo "push rejected; rebasing onto origin/main (attempt $attempt)"
+            git fetch --depth=100 origin main
+            git rebase origin/main || { git rebase --abort; exit 1; }
+          done
+          echo "push still failing after retries"; exit 1
 
       - name: Publish to Instagram
         env:
