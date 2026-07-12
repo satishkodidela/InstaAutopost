@@ -27,23 +27,35 @@ def make_client():
     )
 
 
-def build_reference(url: str):
-    """Fetch the dish photo once; reusable across all generations."""
+def fetch_image(url: str):
+    """Download an image URL as a types.Image (fetched once, reusable)."""
     from google.genai import types
 
     resp = requests.get(url, timeout=120)
     resp.raise_for_status()
     clean = url.lower().split("?")[0]
     mime = "image/png" if clean.endswith(".png") else "image/jpeg"
+    return types.Image(image_bytes=resp.content, mime_type=mime)
+
+
+def build_reference(url: str):
+    """Fetch the dish photo once; reusable across all generations."""
+    from google.genai import types
+
     return types.VideoGenerationReferenceImage(
-        image=types.Image(image_bytes=resp.content, mime_type=mime),
-        reference_type="asset",
+        image=fetch_image(url), reference_type="asset"
     )
 
 
-def start_generation(client, prompt: str, reference, duration_s: int):
+def start_generation(
+    client, prompt: str, reference, duration_s: int, first_frame=None, last_frame=None
+):
     """Create one generation; retries 429s — Tier 1 Veo allows only a couple
-    of requests per minute, so back-to-back creates trip the rate limiter."""
+    of requests per minute, so back-to-back creates trip the rate limiter.
+
+    first_frame/last_frame (types.Image) run Veo in interpolation mode; the
+    API requires last_frame to come with an image, and reference_images
+    can't combine with either, so callers pass reference OR frames."""
     from google.genai import types
 
     config = types.GenerateVideosConfig(
@@ -54,14 +66,16 @@ def start_generation(client, prompt: str, reference, duration_s: int):
     )
     if PERSON_GENERATION:
         config.person_generation = PERSON_GENERATION
-    if reference is not None:
+    if last_frame is not None:
+        config.last_frame = last_frame
+    if reference is not None and first_frame is None:
         config.reference_images = [reference]
 
     attempts = 5
     for attempt in range(attempts):
         try:
             return client.models.generate_videos(
-                model=VEO_MODEL, prompt=prompt, config=config
+                model=VEO_MODEL, prompt=prompt, image=first_frame, config=config
             )
         except Exception as exc:
             rate_limited = "429" in str(exc) or "RESOURCE_EXHAUSTED" in str(exc)

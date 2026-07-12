@@ -102,8 +102,10 @@ def build_script(recipe: dict, handle: str, target_seconds: float = 22.0) -> str
     frags = [_step_fragment(s, max_words=max_words) for s in picks]
 
     connectors = ["First,", "Then,", "Next,", "After that,"]
+    # Series posts (e.g. challenge days) open with their own line
+    opener = recipe.get("vo_opener") or f"This {name} needs just {n_ing} ingredients!"
     lines = [
-        f"This {name} needs just {n_ing} ingredients!",
+        opener,
         "What you need is on the screen.",
     ]
     for i, frag in enumerate(frags[:-1]):

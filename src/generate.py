@@ -21,6 +21,7 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import challenge as challenge_mod
 from ai_reel import make_ai_reel
 from card import make_cover, make_follow_card, make_ingredients_card, make_steps_cards
 from hero_image import generate_hero
@@ -144,7 +145,12 @@ def pick_bank_recipe(root: Path, posted: set[str], today) -> tuple[dict | None, 
     return _bank_recipe_from(random.choice(unposted)), None
 
 
-def build_caption(recipe: dict, date_label: str, music: Path | None = None) -> str:
+def build_caption(
+    recipe: dict,
+    date_label: str,
+    music: Path | None = None,
+    challenge: tuple[dict, dict] | None = None,
+) -> str:
     # Bilingual keyword-first title: Instagram/Google index caption keywords,
     # and the Telugu-script name doubles the searchable surface
     title = f"{recipe['name']} recipe"
@@ -152,9 +158,15 @@ def build_caption(recipe: dict, date_label: str, music: Path | None = None) -> s
     if te_name:
         title = f"{recipe['name']} | {te_name} recipe"
     meta = " • ".join(filter(None, [recipe["area"], recipe["category"]]))
+    hashtags = HASHTAGS
     lines = [f"🍽️ {title}"]
     if meta:
         lines.append(f"({meta})")
+    if challenge:
+        config, state = challenge
+        lines.append(f"🏆 {config['name']} — Day {state['day']}/{config['days']}")
+        if config.get("hashtags"):
+            hashtags = f"{HASHTAGS} {config['hashtags']}"
     lines += ["", f"📅 {date_label}", "", "🛒 Ingredients:"]
     lines += [
         f"• {item['measure']} {item['name']}".rstrip() for item in recipe["ingredients"]
@@ -170,7 +182,7 @@ def build_caption(recipe: dict, date_label: str, music: Path | None = None) -> s
     credits = "Recipe data: TheMealDB"
     if music is not None:
         credits += f" | Music: {music.stem}"
-    lines += ["", credits, "", HASHTAGS]
+    lines += ["", credits, "", hashtags]
 
     caption = "\n".join(lines)
     # Instagram's limit is 2200; leave margin since it counts emoji
@@ -178,8 +190,8 @@ def build_caption(recipe: dict, date_label: str, music: Path | None = None) -> s
     # re-append after truncating.
     max_len = 2000
     if len(caption) > max_len:
-        keep = max_len - len(HASHTAGS) - 5
-        caption = caption[:keep].rsplit("\n", 1)[0] + "\n…\n" + HASHTAGS
+        keep = max_len - len(hashtags) - 5
+        caption = caption[:keep].rsplit("\n", 1)[0] + "\n…\n" + hashtags
     return caption
 
 
@@ -206,9 +218,22 @@ def main() -> None:
               f"on {last_post.get('date')}")
 
     festival = None
+    challenge = challenge_mod.active_challenge(root)
     try:
-        # Source order: owner queue -> South Indian bank -> TheMealDB fallback
-        recipe = pop_queued_recipe(root)
+        # Source order: active challenge -> owner queue -> South Indian bank
+        # -> TheMealDB fallback
+        recipe = None
+        if challenge:
+            config, ch_state = challenge
+            try:
+                stem = challenge_mod.pick_stem(root, config, ch_state, set(posted))
+                recipe = _bank_recipe_from(root / "recipes" / "bank" / f"{stem}.json")
+                print(f"Challenge '{config['name']}' day {ch_state['day']}/{config['days']}: {recipe['name']}")
+            except Exception as exc:
+                print(f"Challenge pick failed ({exc}); normal rotation", file=sys.stderr)
+                challenge = None
+        if recipe is None:
+            recipe = pop_queued_recipe(root)
         if recipe is None:
             recipe, festival = pick_bank_recipe(root, set(posted), now_ist.date())
             if recipe is not None:
@@ -234,7 +259,18 @@ def main() -> None:
         sys.exit(1)
 
     # Series hooks for the reel overlay
-    if festival:
+    if challenge:
+        config, ch_state = challenge
+        day, days = ch_state["day"], config["days"]
+        recipe["hook"] = (config.get("hook") or "Day {day}/{days} 🏆").format(day=day, days=days)
+        # The story planner frames shots for the challenge angle, and the
+        # voiceover opens with the day count instead of the ingredient count
+        recipe["story_angle"] = config.get("angle")
+        recipe["vo_opener"] = (
+            f"Day {day} of our {days}-day healthy food challenge! "
+            f"Today: {recipe['name']}."
+        )
+    elif festival:
         recipe["hook"] = f"{festival} special!"
     elif len(recipe["ingredients"]) <= 5:
         recipe["hook"] = f"Only {len(recipe['ingredients'])} ingredients!"
@@ -258,7 +294,9 @@ def main() -> None:
 
     fmt = os.environ.get("POST_FORMAT")
     if fmt not in ("reel", "carousel"):
-        fmt = "reel" if random.random() < REEL_PROBABILITY else "carousel"
+        # Challenge days are always reels (with the usual carousel fallback
+        # on generation failure) — a carousel mid-series breaks the format
+        fmt = "reel" if challenge else ("reel" if random.random() < REEL_PROBABILITY else "carousel")
 
     music = None
     vo_lang = None
@@ -307,11 +345,13 @@ def main() -> None:
         (posts_dir / f"{date_str}.mp4").unlink(missing_ok=True)
 
     (posts_dir / f"{date_str}.txt").write_text(
-        build_caption(recipe, date_label, music), encoding="utf-8"
+        build_caption(recipe, date_label, music, challenge), encoding="utf-8"
     )
 
     posted.append(recipe["id"])
     posted_path.write_text(json.dumps(posted, indent=0) + "\n")
+    if challenge:
+        challenge_mod.advance(root, *challenge)
 
     history.append(
         {
