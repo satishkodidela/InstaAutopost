@@ -154,9 +154,17 @@ def build_beats(
         f"are used in the following cooking shots. Camera: fixed."
     )
     # Serving payoff is the share moment for a Telugu audience (the rice
-    # plate), so it takes the slot right before the loop close.
+    # plate), so it takes the slot right before the loop close. Sweets and
+    # tiffins are never eaten over rice — serve those on a banana leaf.
+    on_rice = (recipe.get("category") or "").lower() not in (
+        "dessert", "sweet", "breakfast", "snack"
+    )
+    surface = (
+        "over hot steaming rice on a steel plate" if on_rice
+        else "onto a banana leaf on a steel plate"
+    )
     serve = (
-        f"the finished {name} served over hot steaming rice on a steel plate, "
+        f"the finished {name} served {surface}, "
         f"a spoon lifting a portion, glossy texture. Camera: fixed."
     )
     loop_close = (
@@ -354,9 +362,10 @@ _TELUGU_RE = re.compile(r"[ఀ-౿]")
 
 
 def _overlay_font(texts: list[str], size: int):
-    """DejaVu/Arial have no Telugu glyphs — code-mixed hook lines would render
-    as tofu boxes. The bundled Noto Sans Telugu covers Telugu AND Latin, so it
-    takes over whenever any Telugu script appears in the block."""
+    """DejaVu/Arial have no Telugu glyphs and the bundled Noto Sans Telugu
+    has NO Latin letters, so each text block is routed whole to the one font
+    that covers it. Blocks must therefore stay single-script — enforced by
+    the hook whitelist in storyboard.plan_reel."""
     if any(_TELUGU_RE.search(t) for t in texts) and CAPTION_FONT_FILE.exists():
         return _font([str(CAPTION_FONT_FILE), *FONT_CANDIDATES_BOLD], size)
     return _font(FONT_CANDIDATES_BOLD, size)
@@ -373,7 +382,6 @@ def _overlay_png(
     draw = ImageDraw.Draw(img)
     top_font = _overlay_font(lines_top, 64)
     bottom_font = _overlay_font(lines_bottom, bottom_size)
-    line_h = bottom_size + 22
 
     scratch = ImageDraw.Draw(Image.new("RGB", (1, 1)))
     top_wrapped = [
@@ -383,22 +391,29 @@ def _overlay_png(
         ln for t in lines_bottom for ln in _wrap(scratch, t, bottom_font, REEL_W - 240)
     ]
 
+    # Pill heights come from real font metrics: Telugu conjunct descenders
+    # are far deeper than Latin (Noto Telugu Bold @64 needs ascent 56 +
+    # descent 31) and would overflow a fixed-height pill onto the footage.
+    t_asc, t_desc = top_font.getmetrics()
     y = SAFE_TOP
     for line in top_wrapped:
         w = draw.textlength(line, font=top_font)
         x = (REEL_W - w) / 2
         draw.rounded_rectangle(
-            [x - 24, y - 10, x + w + 24, y + 74], radius=16, fill=(20, 12, 8, 200)
+            [x - 24, y - 10, x + w + 24, y + t_asc + t_desc + 6],
+            radius=16, fill=(20, 12, 8, 200)
         )
         draw.text((x, y), line, font=top_font, fill=(255, 255, 255, 255))
-        y += 88
+        y += t_asc + t_desc + 20
 
+    b_asc, b_desc = bottom_font.getmetrics()
+    line_h = b_asc + b_desc + 16
     y = REEL_H - SAFE_BOTTOM - len(bottom_wrapped) * line_h
     for line in bottom_wrapped:
         w = draw.textlength(line, font=bottom_font)
         x = (REEL_W - w) / 2
         draw.rounded_rectangle(
-            [x - 20, y - 8, x + w + 20, y + bottom_size + 8],
+            [x - 20, y - 8, x + w + 20, y + b_asc + b_desc + 4],
             radius=14,
             fill=ACCENT + (230,),
         )
@@ -443,24 +458,27 @@ def _clean_cuts(cuts: list[float], dur: float) -> list[float]:
     return out
 
 
-def _snap(expected: float, cuts: list[float], lo: float, tol: float = 2.0) -> float:
-    """Nearest detected cut to the expected beat boundary, else the grid value."""
+def _snap(expected: float, cuts: list[float], lo: float, tol: float = 1.2) -> float:
+    """Nearest detected cut to the expected beat boundary, else the grid value.
+
+    tol stays well under half a beat: scdet fires on steam bursts and busy
+    stirring too, and trusting a far-off hit would drag an overlay window
+    onto the wrong shot — worse than the +/-1s drift it corrects."""
     cands = [c for c in cuts if abs(c - expected) <= tol and c > lo + 0.4]
     return min(cands, key=lambda c: abs(c - expected)) if cands else expected
 
 
-def _subcut_segments(boundaries: list[float]) -> list[tuple[float, float, bool]]:
-    """(start, end, punch) spans: every shot >= MIN_PUNCH_SPAN is split at
-    PUNCH_AT into full-frame then punched-in — a hard sub-cut per shot."""
-    segments: list[tuple[float, float, bool]] = []
-    for s, e in zip(boundaries, boundaries[1:]):
-        if e - s >= MIN_PUNCH_SPAN:
-            p = s + PUNCH_AT * (e - s)
-            segments.append((s, p, False))
-            segments.append((p, e, True))
-        elif e - s > 0.05:
-            segments.append((s, e, False))
-    return segments
+def _strip_unrenderable(text: str) -> str:
+    """Drop emoji/symbol codepoints no overlay font covers (challenge hooks
+    like "Day 3/7 🏆") — they'd render as tofu boxes in the headline."""
+    import unicodedata
+
+    kept = [
+        ch for ch in text
+        if ord(ch) < 0x1F000 and ch != "️"
+        and unicodedata.category(ch) not in ("So", "Sk", "Cs", "Co")
+    ]
+    return re.sub(r"\s{2,}", " ", "".join(kept)).strip()
 
 
 def _trim_lead_silence(ff: str, seg: dict, out_dir: Path, idx: int) -> None:
@@ -503,17 +521,19 @@ def _ass_time(t: float) -> str:
     return f"{h}:{m:02d}:{s:05.2f}"
 
 
-def _write_ass(segments: list[dict], ass_path: Path, n_shots: int) -> bool:
-    """Word-timed karaoke captions from voiceover segments. Skips the shot-2
-    (ingredient list) and final (follow bar) windows to avoid overlay clashes.
+def _write_ass(segments: list[dict], ass_path: Path, masks: list[tuple[float, float]]) -> bool:
+    """Word-timed karaoke captions from voiceover segments. Skips any event
+    overlapping a masked window (the ingredient pill and follow bar own the
+    lower third; masks carry the SNAPPED windows, so captions never stack
+    under a pill even when a cut drifted off the nominal grid).
     Returns False if there is nothing to caption."""
     events = []
     for seg in segments:
         words = seg.get("words") or []
         if not words:
             continue
-        idx = round(seg["start"] / BEAT_SECONDS)
-        if idx == 1 or idx == n_shots - 1:  # ingredient / follow overlays own the lower third here
+        start, end = words[0]["start"], words[-1]["end"]
+        if any(start < hi and end > lo for lo, hi in masks):
             continue
         parts = []
         for i, w in enumerate(words):
@@ -521,7 +541,6 @@ def _write_ass(segments: list[dict], ass_path: Path, n_shots: int) -> bool:
             dur_cs = max(1, round((nxt - w["start"]) * 100))  # fold gaps into the word for a continuous sweep
             text = (w["text"] or "").replace("{", "").replace("}", "").replace("\n", " ")
             parts.append(f"{{\\kf{dur_cs}}}{text} ")
-        start, end = words[0]["start"], words[-1]["end"]
         events.append(
             f"Dialogue: 0,{_ass_time(start)},{_ass_time(end)},Cap,,0,0,0,,{''.join(parts).rstrip()}"
         )
@@ -553,10 +572,13 @@ def assemble_reel(
     out_path: Path,
     voiceover: dict | None,
     music: Path | None,
+    chained: bool = False,
 ) -> None:
     ff = _ffmpeg()
     n_ing = len(recipe["ingredients"])
-    hook_text = recipe.get("hook") or ""
+    # Challenge/festival hooks carry emoji no overlay font covers — strip
+    # rather than render tofu boxes in the headline.
+    hook_text = _strip_unrenderable(recipe.get("hook") or "")
     # Telugu needs OpenType shaping (raqm; Pillow wheels bundle it but it
     # loads libfribidi at runtime — installed by the workflows). Unshaped
     # conjuncts read as broken bot-text to natives, which is worse than no
@@ -571,39 +593,98 @@ def assemble_reel(
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_dir = Path(tmp)
-        # Timed overlays: gen 1 gets hook (shot 1) + a single recipe pill
-        # (shot 2 — the old 10-line ingredient list needed ~19s of reading in
-        # 4s and hid the food; the full list lives in the caption, and the
-        # pill drives caption-opens, which Instagram counts as engagement).
-        # The LAST gen gets a small follow bar on its final 1.5s only — a
-        # long CTA tail signals "video over" and trains an early swipe.
-        ov_hook = tmp_dir / "ov_hook.png"
-        _overlay_png([hook_text], [recipe["name"]], ov_hook)
+        # Timed overlays: gen 1 gets the hook headline + dish-name pill
+        # (shot 1) and a single recipe pill (shot 2 — the old 10-line
+        # ingredient list needed ~19s of reading in 4s and hid the food; the
+        # full list lives in the caption, and the pill drives caption-opens,
+        # which Instagram counts as engagement). The LAST gen gets a small
+        # follow bar near its end only — a long CTA tail signals "video
+        # over" and trains an early swipe. The headline and dish pill are
+        # separate PNGs: the headline waits 0.3s past the loop seam, while
+        # the dish name shows from frame 0 (it doubles as the cover text).
+        ov_head = tmp_dir / "ov_head.png"
+        _overlay_png([hook_text], [], ov_head)
+        ov_name = tmp_dir / "ov_name.png"
+        _overlay_png([], [recipe["name"]], ov_name)
         ov_ing = tmp_dir / "ov_ing.png"
         _overlay_png(["What you need:"], ["Full recipe in caption ↓"], ov_ing)
         ov_follow = tmp_dir / "ov_follow.png"
         _overlay_png([], [f"Follow @{handle}"], ov_follow)
 
         norm = []
+        cap_masks: list[tuple[float, float]] = []
         for i, clip in enumerate(clips):
             out = tmp_dir / f"norm{i:02d}.mp4"
             has_audio = _has_audio(ff, clip)
+            if i == 0 and not has_audio:
+                # e.g. the Seedance audio-filter silent retry: the opening
+                # "audio hook" (first-2s bed boost) has nothing to boost
+                print("  first clip has no audio bed — the reel opens on the voice alone", flush=True)
             dur = min(_media_duration(ff, clip) or GEN_SECONDS, GEN_SECONDS)
             cuts = _clean_cuts(_scene_cuts(ff, clip), dur)
+
+            # Overlay windows first (the punch rules below need them),
+            # snapped to DETECTED cuts so text never bleeds onto the next
+            # shot. between() is inclusive at both ends, so consecutive
+            # windows are separated by one frame.
+            overlays = []
+            hook_end = ing_end = dur
+            if i == 0:
+                # Floor at 3s: one spurious early scene hit must not leave
+                # the headline unreadable
+                hook_end = min(max(_snap(BEAT_SECONDS, cuts, lo=0.0), 3.0), dur)
+                if 2 * BEAT_SECONDS >= dur - 0.5:
+                    # Shot 2 ends at the physical clip end (Veo: 2 beats per
+                    # gen) — any snap candidate there is a false positive
+                    ing_end = dur
+                else:
+                    ing_end = min(_snap(2 * BEAT_SECONDS, cuts, lo=hook_end), dur)
+                ing_end = max(ing_end, hook_end + 0.6)
+                overlays.append((ov_head, f"between(t,0.3,{hook_end:.2f})"))
+                overlays.append((ov_name, f"lt(t,{hook_end:.2f})"))
+                overlays.append((ov_ing, f"between(t,{hook_end + 0.034:.2f},{ing_end:.2f})"))
+                cap_masks.append((0.0, ing_end))
+            if i == len(clips) - 1:
+                # Follow bar: ~1.25s near the end, gone 0.25s before the
+                # last frame so the loop seam isn't announced by a pill pop
+                overlays.append(
+                    (ov_follow, f"between(t,{max(dur - 1.5, 0):.2f},{dur - 0.25:.2f})")
+                )
+
+            # Hard punch-in sub-cut per shot (pacing) — except: shots under
+            # the ingredient pill (the zoom would crop off the laid-out bowls
+            # the shot exists to show), and the final span of chained clips /
+            # the last clip (the shared boundary keyframe and the loop seam
+            # must match the next frame unzoomed).
+            bounds = [0.0, *cuts, dur]
+            segs: list[tuple[float, float, bool]] = []
+            for s, e in zip(bounds, bounds[1:]):
+                if e - s <= 0.05:
+                    continue
+                punch = e - s >= MIN_PUNCH_SPAN
+                if i == 0 and s < ing_end - 0.01 and e > hook_end + 0.01:
+                    punch = False
+                if (chained or i == len(clips) - 1) and e >= dur - 0.01:
+                    punch = False
+                if punch:
+                    p = s + PUNCH_AT * (e - s)
+                    segs.append((s, p, False))
+                    segs.append((p, e, True))
+                else:
+                    segs.append((s, e, False))
+
             cmd = [ff, "-y", "-i", str(clip)]
+            # setsar=1 everywhere: scale+crop can tag a fractional SAR (e.g.
+            # 480p sources), and concat hard-fails on any SAR mismatch
+            # between punched and un-punched segments
             base = (
                 f"[0:v]scale={REEL_W}:{REEL_H}:force_original_aspect_ratio=increase,"
-                f"crop={REEL_W}:{REEL_H},fps={FPS}"
+                f"crop={REEL_W}:{REEL_H},fps={FPS},setsar=1"
             )
-
-            # Hard punch-in sub-cut inside every detected shot (pacing).
-            segs = _subcut_segments([0.0, *cuts, dur])
             if len(segs) > 1:
                 parts = [f"{base}[vbase]",
                          f"[vbase]split={len(segs)}" + "".join(f"[b{k}]" for k in range(len(segs)))]
                 for k, (s, e, punch) in enumerate(segs):
-                    # setsar=1: the zoom's crop+scale-back yields a fractional
-                    # SAR that concat rejects against the un-punched segments
                     zoom = (
                         f",crop=iw/{PUNCH_ZOOM}:ih/{PUNCH_ZOOM},"
                         f"scale={REEL_W}:{REEL_H},setsar=1"
@@ -621,18 +702,6 @@ def assemble_reel(
             else:
                 chain_head = f"{base}[vcat]"
                 cur = "vcat"
-
-            # (png_path, enable_expr) overlays, windows snapped to DETECTED
-            # cuts so text never bleeds onto the next shot. The hook waits
-            # 0.3s so the loop seam (last frame -> first) reads continuous.
-            overlays = []
-            if i == 0:
-                hook_end = min(_snap(BEAT_SECONDS, cuts, lo=0.0), dur)
-                ing_end = min(_snap(2 * BEAT_SECONDS, cuts, lo=hook_end), dur)
-                overlays.append((ov_hook, f"between(t,0.3,{hook_end:.2f})"))
-                overlays.append((ov_ing, f"between(t,{hook_end:.2f},{ing_end:.2f})"))
-            if i == len(clips) - 1:
-                overlays.append((ov_follow, f"gt(t,{max(dur - 1.5, 0):.2f})"))
 
             if overlays:
                 for png, _ in overlays:
@@ -687,6 +756,20 @@ def assemble_reel(
         segments = [dict(s) for s in ((voiceover or {}).get("segments") or [])]
         for k, seg in enumerate(segments):
             _trim_lead_silence(ff, seg, tmp_dir, k)
+        # Trimming removed the dead air that used to absorb a previous
+        # line's sanctioned overrun (_fit_to_shot allows ~1.4s past the
+        # shot) — nudge a segment later rather than let two lines in the
+        # same voice talk over each other.
+        for k in range(1, len(segments)):
+            prev_end = segments[k - 1]["end"]
+            if segments[k]["start"] < prev_end + 0.05:
+                shift = prev_end + 0.05 - segments[k]["start"]
+                segments[k]["start"] += shift
+                segments[k]["end"] += shift
+                segments[k]["words"] = [
+                    {**w, "start": w["start"] + shift, "end": w["end"] + shift}
+                    for w in (segments[k].get("words") or [])
+                ]
         cmd = [ff, "-y", "-i", str(base_av)]
         filters = ["[0:a]volume='if(lt(t,2),1.0,0.5)':eval=frame[siz]"]
         mix = ["[siz]"]
@@ -712,14 +795,14 @@ def assemble_reel(
         # Karaoke captions from word timings (ElevenLabs/Sarvam). When present
         # the final video must be re-encoded to burn subtitles, so mix audio
         # into an intermediate first, then a caption pass produces out_path.
-        n_shots = len(clips) * BEATS_PER_GEN
+        cap_masks.append((max(video_len - 1.5, 0), video_len))  # follow bar
         ass_path = tmp_dir / "captions.ass"
         # Captions are opt-in (REEL_CAPTIONS=1); off by default per owner.
         want_captions = (
             os.environ.get("REEL_CAPTIONS") == "1"
             and segments
             and CAPTION_FONT_FILE.exists()
-            and _write_ass(segments, ass_path, n_shots)
+            and _write_ass(segments, ass_path, cap_masks)
         )
         audio_out = (tmp_dir / "av_mixed.mp4") if want_captions else out_path
         cmd += [
@@ -811,4 +894,7 @@ def make_ai_reel(
             clips = generate_clips_veo(prompts, ref_image, Path(tmp), keyframes)
         else:
             clips = generate_clips(prompts, ref_image, key, Path(tmp), keyframes)
-        assemble_reel(clips, recipe, handle, out_path, voiceover, music)
+        assemble_reel(
+            clips, recipe, handle, out_path, voiceover, music,
+            chained=keyframes is not None,
+        )

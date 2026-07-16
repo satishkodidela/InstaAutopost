@@ -51,6 +51,11 @@ def thumb_offset_ms(video: Path) -> int | None:
     if not m:
         return None
     dur = float(m.group(1)) * 3600 + float(m.group(2)) * 60 + float(m.group(3))
+    if dur < 16:
+        # Credit-crunch reels (a single generation) have no serving beat —
+        # dur-6 would land on the ingredient bowls. Frame ~0 is the
+        # finished-dish hook, so the default cover is already right.
+        return None
     return int(max(dur - 6.0, 0) * 1000)
 
 

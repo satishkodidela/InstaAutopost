@@ -195,12 +195,17 @@ def plan_reel(recipe: dict, n_beats: int, style_block: str) -> dict | None:
         if not shots:
             return None
         hook = (shots[0].get("hook") or "").strip() or None
-        # Mixed Telugu + Latin/digits would tofu: the Telugu overlay font has
-        # no Latin glyphs and the Latin fonts have no Telugu. All-Telugu or
-        # all-Latin hooks are both renderable; anything mixed gets dropped.
-        if hook and re.search(r"[ఀ-౿]", hook) and re.search(r"[A-Za-z0-9]", hook):
-            print(f"  hook mixes scripts, dropping: {hook}", flush=True)
-            hook = None
+        # The overlay renders each block with ONE font: Noto Sans Telugu has
+        # no Latin letters and no emoji, DejaVu has no Telugu. A Telugu hook
+        # must therefore contain ONLY glyphs Noto Telugu covers (whitelist —
+        # a blacklist can't anticipate every emoji/foreign script the LLM
+        # might sneak in); a pure-Latin hook renders via DejaVu and is fine.
+        if hook and re.search(r"[ఀ-౿]", hook):
+            if not re.fullmatch(
+                r"[ఀ-౿0-9\s‌‍.,:;!?'\"“”‘’\-–—…()]+", hook
+            ):
+                print(f"  hook has unrenderable characters, dropping: {hook}", flush=True)
+                hook = None
         return {
             "beats": [_beat(s) for s in shots],
             "narration": [(s.get("vo") or "").strip() for s in shots],
