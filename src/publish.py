@@ -15,6 +15,9 @@ before running this script).
 """
 
 import os
+import re
+import shutil
+import subprocess
 import sys
 import time
 from datetime import datetime
@@ -24,6 +27,31 @@ from zoneinfo import ZoneInfo
 import requests
 
 API_BASE = "https://graph.instagram.com/v23.0"
+
+
+def thumb_offset_ms(video: Path) -> int | None:
+    """Cover-frame offset for the Reel container, in milliseconds.
+
+    Without it Instagram covers the reel with frame 1, and the profile
+    grid's 3:4 centre crop slices the hook headline in half. Aim at the
+    serving/payoff beat — 6s before the end lands mid-way through the
+    second-to-last 4s shot. Returns None if the video can't be probed
+    (the container is then created without an offset, as before).
+    """
+    ff = shutil.which("ffmpeg")
+    if not ff:
+        try:
+            import imageio_ffmpeg
+
+            ff = imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception:
+            return None
+    probe = subprocess.run([ff, "-i", str(video)], capture_output=True, text=True)
+    m = re.search(r"Duration: (\d+):(\d+):([\d.]+)", probe.stderr)
+    if not m:
+        return None
+    dur = float(m.group(1)) * 3600 + float(m.group(2)) * 60 + float(m.group(3))
+    return int(max(dur - 6.0, 0) * 1000)
 
 
 def require_env(name: str) -> str:
@@ -120,16 +148,16 @@ def main() -> None:
         print(f"Waiting for video to be reachable: {video_url}")
         wait_for_url(video_url)
         print("Creating Reel container...")
-        creation_id = create_container(
-            ig_user_id,
-            token,
-            {
-                "media_type": "REELS",
-                "video_url": video_url,
-                "caption": caption,
-                "share_to_feed": "true",
-            },
-        )
+        data = {
+            "media_type": "REELS",
+            "video_url": video_url,
+            "caption": caption,
+            "share_to_feed": "true",
+        }
+        offset = thumb_offset_ms(video)
+        if offset is not None:
+            data["thumb_offset"] = str(offset)
+        creation_id = create_container(ig_user_id, token, data)
         publish(ig_user_id, token, creation_id)
         return
 

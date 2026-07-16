@@ -277,8 +277,9 @@ def main() -> None:
         )
     elif festival:
         recipe["hook"] = f"{festival} special!"
-    elif len(recipe["ingredients"]) <= 5:
-        recipe["hook"] = f"Only {len(recipe['ingredients'])} ingredients!"
+    # Otherwise the storyboard planner writes a dish-specific hook (set in
+    # the reel branch below); "Only N ingredients!" survives only as the
+    # last-resort fallback inside assemble_reel.
 
     # Method cards first — their count determines the page total shown
     # in the cover/ingredients page dots.
@@ -307,7 +308,11 @@ def main() -> None:
     vo_lang = None
     reel_kind = None
     if fmt == "reel":
-        music = pick_music(root)
+        # Music is opt-in (REEL_MUSIC=1): a generic library track gives
+        # neither trending-audio discovery nor brand identity, and its
+        # caption credit reads as templated content. The Telangana VO plus
+        # the clips' own sizzle IS the reel's original audio.
+        music = pick_music(root) if os.environ.get("REEL_MUSIC") == "1" else None
         video_path = posts_dir / f"{date_str}.mp4"
 
         with tempfile.TemporaryDirectory() as work:
@@ -321,6 +326,10 @@ def main() -> None:
             plan = plan_reel(recipe, n_gens * BEATS_PER_GEN, STYLE_BLOCK)
             narration = plan["narration"] if plan else None
             story = plan["beats"] if plan else None
+            # Dish-specific on-screen hook from the planner; challenge and
+            # festival hooks (set above) keep priority.
+            if plan and plan.get("hook") and not recipe.get("hook"):
+                recipe["hook"] = plan["hook"]
 
             # VO must fit inside the video with room for the delay + fade
             vo_budget = n_gens * GEN_SECONDS - 2.0

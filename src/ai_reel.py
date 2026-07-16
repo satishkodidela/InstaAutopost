@@ -20,11 +20,22 @@ Design (per researched best practices, see FEEDBACK.md and plan):
   The kitchen set and lighting stay locked in every reel (brand look).
 - Food-motion rules: camera locked or slow push-in only, food provides the
   motion, backlit steam, hands enter from frame edge, no "fast".
-- Seamless loop: the last beat mirrors the hook framing (rewatches).
-- No end-CTA overlay (kills completion); hook + ingredient overlays only,
-  inside Instagram's safe zones.
-- generate_audio=true: the clips' own sizzle/ASMR bed sits under the
-  Telugu voiceover, with optional music at a whisper.
+- Seamless loop: the last beat mirrors the hook framing (rewatches); the
+  hook overlay fades in 0.3s late so the loop seam reads as continuous.
+- Edit-time pacing: each clip is scene-detected and every shot longer than
+  ~3s gets a hard punch-in sub-cut (1.32x centre crop), roughly doubling
+  the perceived cut rate at zero generation cost. Overlay windows snap to
+  the DETECTED cuts, not the prompt's nominal 4s grid — the model lands
+  its internal cuts loosely, and text must never bleed onto the next shot.
+- Overlays: hook pill (shot 1), a single "Full recipe in caption" pill
+  (shot 2 — a full ingredient list is unreadable in 4s and hides the
+  food), and a small follow bar on the LAST 1.5s only. All inside
+  Instagram's safe zones and above the 3:4 grid-crop line.
+- Audio: the clips' own sizzle bed is boosted for the first 2s (sound-on
+  scroll hook), voiceover segments get their lead silence trimmed so the
+  voice lands within ~0.1s, and the final mix is loudness-normalised to
+  -14 LUFS (Instagram's target). Music is opt-in (REEL_MUSIC=1) — the
+  VO + sizzle IS the original audio.
 """
 
 import os
@@ -56,9 +67,16 @@ CREDITS_PER_SECOND = float(os.environ.get("KIE_CREDITS_PER_SECOND") or "19")
 REEL_W, REEL_H = 1080, 1920
 FPS = 30
 ACCENT = (232, 93, 38)
-# Instagram UI safe zones: keep text >=210px from top, >=380px from bottom
-SAFE_TOP = 210
+# Instagram UI safe zones: keep text >=380px from bottom. Top text must also
+# survive the profile-grid 3:4 centre crop (keeps y 240-1680 of 1920), so it
+# starts at 300 — below the crop line with margin, above the video's midline.
+SAFE_TOP = 300
 SAFE_BOTTOM = 380
+# Punch-in sub-cuts: shots >= MIN_PUNCH_SPAN get a hard cut to a PUNCH_ZOOM
+# centre crop at PUNCH_AT of the shot — pacing without new generation cost.
+PUNCH_ZOOM = 1.32
+MIN_PUNCH_SPAN = 3.0
+PUNCH_AT = 0.55
 
 # Locked brand look: one kitchen, one light, in every reel (owner decision).
 # Variety comes from the per-recipe story (storyboard.py), not the set.
@@ -74,22 +92,6 @@ NEGATIVE = "Avoid jitter, warped hands, artificial speed changes, fast motion."
 FONTS_DIR = Path(__file__).resolve().parent.parent / "assets" / "fonts"
 CAPTION_FONT_FILE = FONTS_DIR / "NotoSansTelugu-Bold.ttf"
 CAPTION_FONT_NAME = "Noto Sans Telugu"
-
-# Proven appetite-hook beats, chosen by keyword match against recipe steps
-HOOK_BEATS = [
-    (("tadka", "temper", "mustard seeds", "curry leaves"),
-     "tadka pour — mustard seeds and curry leaves crackling in hot oil poured over the dish, backlit steam"),
-    (("fry", "sizzl", "roast", "saute", "sauté"),
-     "close-up sizzle — the dish frying gently, oil sheen glistening, tiny bubbles"),
-    (("pour", "sauce", "gravy", "curry"),
-     "sauce cascade — thick glossy gravy ladled slowly over the dish"),
-    (("cut", "slice", "chop"),
-     "knife-cut reveal — a clean slice through the dish showing the texture inside"),
-]
-DEFAULT_HOOK_BEAT = (
-    "garnish drop — fresh coriander sprinkled from above in slow motion, backlit steam rising"
-)
-
 
 def _ffmpeg() -> str:
     exe = shutil.which("ffmpeg")
@@ -109,14 +111,6 @@ def _action_fragment(step: str, max_words: int = 12) -> str:
         words.pop()
     frag = " ".join(words).rstrip(".,;: ")
     return frag[0].lower() + frag[1:] if frag else ""
-
-
-def _pick_hook_beat(steps: list[str]) -> str:
-    text = " ".join(steps).lower()
-    for keywords, beat in HOOK_BEATS:
-        if any(k in text for k in keywords):
-            return beat
-    return DEFAULT_HOOK_BEAT
 
 
 def build_beats(
@@ -159,13 +153,19 @@ def build_beats(
         f"bowls on the dark wood counter: {ing_list} — these same ingredients "
         f"are used in the following cooking shots. Camera: fixed."
     )
-    sizzle = f"{_pick_hook_beat(steps)}, making {name}, continuing the same cooking process. Camera: fixed."
+    # Serving payoff is the share moment for a Telugu audience (the rice
+    # plate), so it takes the slot right before the loop close.
+    serve = (
+        f"the finished {name} served over hot steaming rice on a steel plate, "
+        f"a spoon lifting a portion, glossy texture. Camera: fixed."
+    )
     loop_close = (
         f"The finished {name} exactly as {close_anchor}, same framing as the opening "
-        f"shot, steam rising, garnished. Camera: slow push-in."
+        f"shot, steam rising, a garnish falling mid-air (ends mid-action for a "
+        f"seamless loop). Camera: slow push-in."
     )
 
-    beats = [hook, ingredients, *[f"{a}. Camera: fixed." for a in actions], sizzle, loop_close]
+    beats = [hook, ingredients, *[f"{a}. Camera: fixed." for a in actions], serve, loop_close]
     # Trim/pad to exactly n_gens * BEATS_PER_GEN, keeping first two and last two
     want = n_gens * BEATS_PER_GEN
     while len(beats) > want:
@@ -350,6 +350,18 @@ def generate_clips_veo(
     return paths
 
 
+_TELUGU_RE = re.compile(r"[ఀ-౿]")
+
+
+def _overlay_font(texts: list[str], size: int):
+    """DejaVu/Arial have no Telugu glyphs — code-mixed hook lines would render
+    as tofu boxes. The bundled Noto Sans Telugu covers Telugu AND Latin, so it
+    takes over whenever any Telugu script appears in the block."""
+    if any(_TELUGU_RE.search(t) for t in texts) and CAPTION_FONT_FILE.exists():
+        return _font([str(CAPTION_FONT_FILE), *FONT_CANDIDATES_BOLD], size)
+    return _font(FONT_CANDIDATES_BOLD, size)
+
+
 def _overlay_png(
     lines_top: list[str],
     lines_bottom: list[str],
@@ -359,8 +371,8 @@ def _overlay_png(
     """Transparent overlay; text kept inside IG safe zones."""
     img = Image.new("RGBA", (REEL_W, REEL_H), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
-    top_font = _font(FONT_CANDIDATES_BOLD, 64)
-    bottom_font = _font(FONT_CANDIDATES_BOLD, bottom_size)
+    top_font = _overlay_font(lines_top, 64)
+    bottom_font = _overlay_font(lines_bottom, bottom_size)
     line_h = bottom_size + 22
 
     scratch = ImageDraw.Draw(Image.new("RGB", (1, 1)))
@@ -398,6 +410,89 @@ def _overlay_png(
 def _has_audio(ff: str, clip: Path) -> bool:
     probe = subprocess.run([ff, "-i", str(clip)], capture_output=True, text=True)
     return " Audio:" in probe.stderr
+
+
+def _media_duration(ff: str, path: Path) -> float:
+    probe = subprocess.run([ff, "-i", str(path)], capture_output=True, text=True)
+    m = re.search(r"Duration: (\d+):(\d+):([\d.]+)", probe.stderr)
+    if not m:
+        return 0.0
+    return float(m.group(1)) * 3600 + float(m.group(2)) * 60 + float(m.group(3))
+
+
+def _scene_cuts(ff: str, clip: Path, threshold: float = 0.30) -> list[float]:
+    """Times (s) of the hard cuts the model actually put inside a clip.
+
+    The prompt's [Ns] beat markers only loosely land — measured drift up to
+    ~1.5s — so overlay windows and punch-in points snap to detected cuts
+    instead of trusting the nominal grid."""
+    out = subprocess.run(
+        [ff, "-i", str(clip), "-vf", f"select='gt(scene,{threshold})',showinfo",
+         "-an", "-f", "null", "-"],
+        capture_output=True, text=True,
+    )
+    return [float(t) for t in re.findall(r"pts_time:\s*([\d.]+)", out.stderr)]
+
+
+def _clean_cuts(cuts: list[float], dur: float) -> list[float]:
+    """Drop cuts hugging the clip edges and near-duplicates (<0.8s apart)."""
+    out: list[float] = []
+    for c in sorted(cuts):
+        if 1.0 <= c <= dur - 1.0 and (not out or c - out[-1] >= 0.8):
+            out.append(c)
+    return out
+
+
+def _snap(expected: float, cuts: list[float], lo: float, tol: float = 2.0) -> float:
+    """Nearest detected cut to the expected beat boundary, else the grid value."""
+    cands = [c for c in cuts if abs(c - expected) <= tol and c > lo + 0.4]
+    return min(cands, key=lambda c: abs(c - expected)) if cands else expected
+
+
+def _subcut_segments(boundaries: list[float]) -> list[tuple[float, float, bool]]:
+    """(start, end, punch) spans: every shot >= MIN_PUNCH_SPAN is split at
+    PUNCH_AT into full-frame then punched-in — a hard sub-cut per shot."""
+    segments: list[tuple[float, float, bool]] = []
+    for s, e in zip(boundaries, boundaries[1:]):
+        if e - s >= MIN_PUNCH_SPAN:
+            p = s + PUNCH_AT * (e - s)
+            segments.append((s, p, False))
+            segments.append((p, e, True))
+        elif e - s > 0.05:
+            segments.append((s, e, False))
+    return segments
+
+
+def _trim_lead_silence(ff: str, seg: dict, out_dir: Path, idx: int) -> None:
+    """TTS lines often open with dead air; in the hook shot that delay is
+    fatal (sound-on viewers decide in the first second — measured 2.8s of
+    near-silence before the voice landed). Trim each segment's lead silence,
+    keeping 0.1s of natural attack, and shift its word timings to match.
+    Mutates seg in place; any failure leaves the segment untouched."""
+    src = Path(seg["path"])
+    before = _media_duration(ff, src)
+    trimmed = out_dir / f"votrim{idx:02d}{src.suffix}"
+    try:
+        subprocess.run(
+            [ff, "-y", "-i", str(src), "-af",
+             "silenceremove=start_periods=1:start_duration=0:"
+             "start_threshold=-40dB:start_silence=0.1",
+             str(trimmed)],
+            check=True, capture_output=True, text=True,
+        )
+    except subprocess.CalledProcessError:
+        return
+    after = _media_duration(ff, trimmed)
+    removed = before - after
+    if removed <= 0.05 or after <= 0.1:
+        return
+    start = seg["start"]
+    seg["path"] = trimmed
+    seg["end"] = start + after
+    seg["words"] = [
+        {**w, "start": max(start, w["start"] - removed), "end": max(start, w["end"] - removed)}
+        for w in (seg.get("words") or [])
+    ]
 
 
 def _ass_time(t: float) -> str:
@@ -461,54 +556,95 @@ def assemble_reel(
 ) -> None:
     ff = _ffmpeg()
     n_ing = len(recipe["ingredients"])
-    hook_text = recipe.get("hook") or f"Only {n_ing} ingredients!"
-    # Show ALL ingredients (owner feedback: no "+N more" teasing); only
-    # spill to the caption past 12 to stay inside the safe zone
-    key_ing = [i["name"] for i in recipe["ingredients"][:12]]
-    if n_ing > len(key_ing):
-        key_ing.append(f"+ {n_ing - len(key_ing)} in caption")
+    hook_text = recipe.get("hook") or ""
+    # Telugu needs OpenType shaping (raqm; Pillow wheels bundle it but it
+    # loads libfribidi at runtime — installed by the workflows). Unshaped
+    # conjuncts read as broken bot-text to natives, which is worse than no
+    # Telugu at all, so fall back rather than render them.
+    if hook_text and _TELUGU_RE.search(hook_text):
+        from PIL import features
+
+        if not features.check("raqm"):
+            print("  raqm unavailable — Telugu hook would render unshaped; using fallback", flush=True)
+            hook_text = ""
+    hook_text = hook_text or f"Only {n_ing} ingredients!"
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_dir = Path(tmp)
-        # Timed overlays: gen 1 gets hook (beat 1) + ingredients (beat 2);
-        # the LAST gen gets a small follow bar on the final beat (owner
-        # requirement: follow CTA at the end, kept small in the safe zone).
+        # Timed overlays: gen 1 gets hook (shot 1) + a single recipe pill
+        # (shot 2 — the old 10-line ingredient list needed ~19s of reading in
+        # 4s and hid the food; the full list lives in the caption, and the
+        # pill drives caption-opens, which Instagram counts as engagement).
+        # The LAST gen gets a small follow bar on its final 1.5s only — a
+        # long CTA tail signals "video over" and trains an early swipe.
         ov_hook = tmp_dir / "ov_hook.png"
         _overlay_png([hook_text], [recipe["name"]], ov_hook)
         ov_ing = tmp_dir / "ov_ing.png"
-        _overlay_png(["What you need:"], key_ing, ov_ing, bottom_size=40)
+        _overlay_png(["What you need:"], ["Full recipe in caption ↓"], ov_ing)
         ov_follow = tmp_dir / "ov_follow.png"
-        _overlay_png([], [f"Follow @{handle} for daily recipes"], ov_follow)
+        _overlay_png([], [f"Follow @{handle}"], ov_follow)
 
         norm = []
         for i, clip in enumerate(clips):
             out = tmp_dir / f"norm{i:02d}.mp4"
             has_audio = _has_audio(ff, clip)
+            dur = min(_media_duration(ff, clip) or GEN_SECONDS, GEN_SECONDS)
+            cuts = _clean_cuts(_scene_cuts(ff, clip), dur)
             cmd = [ff, "-y", "-i", str(clip)]
             base = (
                 f"[0:v]scale={REEL_W}:{REEL_H}:force_original_aspect_ratio=increase,"
                 f"crop={REEL_W}:{REEL_H},fps={FPS}"
             )
-            # (png_path, enable_expr) overlays for this clip
+
+            # Hard punch-in sub-cut inside every detected shot (pacing).
+            segs = _subcut_segments([0.0, *cuts, dur])
+            if len(segs) > 1:
+                parts = [f"{base}[vbase]",
+                         f"[vbase]split={len(segs)}" + "".join(f"[b{k}]" for k in range(len(segs)))]
+                for k, (s, e, punch) in enumerate(segs):
+                    # setsar=1: the zoom's crop+scale-back yields a fractional
+                    # SAR that concat rejects against the un-punched segments
+                    zoom = (
+                        f",crop=iw/{PUNCH_ZOOM}:ih/{PUNCH_ZOOM},"
+                        f"scale={REEL_W}:{REEL_H},setsar=1"
+                        if punch else ""
+                    )
+                    parts.append(
+                        f"[b{k}]trim=start={s:.3f}:end={e:.3f},setpts=PTS-STARTPTS{zoom}[s{k}]"
+                    )
+                parts.append(
+                    "".join(f"[s{k}]" for k in range(len(segs)))
+                    + f"concat=n={len(segs)}:v=1:a=0[vcat]"
+                )
+                chain_head = ";".join(parts)
+                cur = "vcat"
+            else:
+                chain_head = f"{base}[vcat]"
+                cur = "vcat"
+
+            # (png_path, enable_expr) overlays, windows snapped to DETECTED
+            # cuts so text never bleeds onto the next shot. The hook waits
+            # 0.3s so the loop seam (last frame -> first) reads continuous.
             overlays = []
             if i == 0:
-                overlays.append((ov_hook, f"lt(t,{BEAT_SECONDS})"))
-                overlays.append((ov_ing, f"between(t,{BEAT_SECONDS},{2 * BEAT_SECONDS})"))
+                hook_end = min(_snap(BEAT_SECONDS, cuts, lo=0.0), dur)
+                ing_end = min(_snap(2 * BEAT_SECONDS, cuts, lo=hook_end), dur)
+                overlays.append((ov_hook, f"between(t,0.3,{hook_end:.2f})"))
+                overlays.append((ov_ing, f"between(t,{hook_end:.2f},{ing_end:.2f})"))
             if i == len(clips) - 1:
-                overlays.append((ov_follow, f"gt(t,{GEN_SECONDS - BEAT_SECONDS})"))
+                overlays.append((ov_follow, f"gt(t,{max(dur - 1.5, 0):.2f})"))
 
             if overlays:
                 for png, _ in overlays:
                     cmd += ["-i", str(png)]
-                chain = f"{base}[v0]"
-                cur = "v0"
+                chain = chain_head
                 for j, (_, enable) in enumerate(overlays):
                     nxt = f"v{j + 1}"
                     chain += f";[{cur}][{j + 1}:v]overlay=0:0:enable='{enable}'[{nxt}]"
                     cur = nxt
                 vf = f"{chain};[{cur}]format=yuv420p[vout]"
             else:
-                vf = f"{base},format=yuv420p[vout]"
+                vf = f"{chain_head};[{cur}]format=yuv420p[vout]"
 
             audio_input_idx = 1 + len(overlays)
             if not has_audio:
@@ -543,9 +679,16 @@ def assemble_reel(
         # Mix: sizzle bed (from clips) + per-shot voiceover segments (each
         # anchored to its shot start) + optional whisper of music. Explicit
         # -t, never -shortest. amix duration=first clamps to the sizzle bed.
-        segments = (voiceover or {}).get("segments", []) if voiceover else []
+        # The bed runs at full level for the first 2s (the audio hook — sound
+        # decides the scroll before the voice can), then drops under the VO.
+        # Each VO segment is lead-silence-trimmed so the voice lands on time,
+        # and the whole mix is normalised to Instagram's -14 LUFS target
+        # (the raw mix measured ~-35 LUFS: inaudible next to other reels).
+        segments = [dict(s) for s in ((voiceover or {}).get("segments") or [])]
+        for k, seg in enumerate(segments):
+            _trim_lead_silence(ff, seg, tmp_dir, k)
         cmd = [ff, "-y", "-i", str(base_av)]
-        filters = ["[0:a]volume=0.5[siz]"]
+        filters = ["[0:a]volume='if(lt(t,2),1.0,0.5)':eval=frame[siz]"]
         mix = ["[siz]"]
         idx = 1
         for seg in segments:
@@ -561,7 +704,9 @@ def assemble_reel(
             idx += 1
         filters.append(
             f"{''.join(mix)}amix=inputs={len(mix)}:duration=first:"
-            f"dropout_transition=0,afade=t=out:st={max(video_len - 1.2, 0)}:d=1.2[aout]"
+            f"dropout_transition=0,"
+            f"loudnorm=I=-14:TP=-1.5:LRA=11,aresample=44100,"
+            f"afade=t=out:st={max(video_len - 1.2, 0)}:d=1.2[aout]"
         )
 
         # Karaoke captions from word timings (ElevenLabs/Sarvam). When present
