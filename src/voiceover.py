@@ -50,15 +50,63 @@ def _ff() -> str:
 
     return imageio_ffmpeg.get_ffmpeg_exe()
 
+# Verified Telugu-script names for the dish bank. These are romanized Telugu
+# proper nouns, so they must NEVER be run through a translation model: Sarvam
+# translate turned "Dondakaya Vepudu" (dondakaya = ivy gourd, vepudu = fry) into
+# "దోసకాయ బీఫ్" (cucumber beef) — wrong vegetable, and "beef" on a veg dish. This
+# map is the source of truth; anything not in it is omitted, not guessed.
+# Keys are normalized by _normalize_dish (lowercased, parentheticals/"recipe"
+# stripped). To add a dish, add its verified Telugu spelling here.
+TELUGU_DISH_NAMES = {
+    "aratikaya vepudu": "అరటికాయ వేపుడు",
+    "bendakaya pulusu": "బెండకాయ పులుసు",
+    "bobbatlu": "బొబ్బట్లు",
+    "chepala pulusu": "చేపల పులుసు",
+    "chintapandu rasam": "చింతపండు రసం",
+    "dondakaya vepudu": "దొండకాయ వేపుడు",
+    "garelu": "గారెలు",
+    "gongura mutton": "గోంగూర మటన్",
+    "gongura pachadi": "గోంగూర పచ్చడి",
+    "gutti vankaya kura": "గుత్తి వంకాయ కూర",
+    "idli": "ఇడ్లీ",
+    "kakarakaya vepudu": "కాకరకాయ వేపుడు",
+    "kobbari pachadi": "కొబ్బరి పచ్చడి",
+    "kodi vepudu": "కోడి వేపుడు",
+    "mysore bonda": "మైసూర్ బోండా",
+    "natu kodi pulusu": "నాటు కోడి పులుసు",
+    "nimmakaya pulihora": "నిమ్మకాయ పులిహోర",
+    "palakura pappu": "పాలకూర పప్పు",
+    "pappu charu": "పప్పు చారు",
+    "perugu annam": "పెరుగు అన్నం",
+    "pesarattu": "పెసరట్టు",
+    "pulihora": "పులిహోర",
+    "punugulu": "పునుగులు",
+    "ragi sangati": "రాగి సంగటి",
+    "rava dosa": "రవ్వ దోస",
+    "sakinalu": "సకినాలు",
+    "sambar": "సాంబార్",
+    "semiya payasam": "సేమియా పాయసం",
+    "tomato pappu": "టమాటా పప్పు",
+    "upma": "ఉప్మా",
+}
+
+
+def _normalize_dish(name: str) -> str:
+    """Match key for TELUGU_DISH_NAMES: lowercase, drop parentheticals/'recipe'."""
+    n = re.sub(r"\s*\(.*?\)\s*", " ", name.lower())
+    n = re.sub(r"\brecipe\b", " ", n)
+    return re.sub(r"\s+", " ", n).strip()
+
+
 def telugu_dish_name(name: str) -> str | None:
-    """Telugu-script dish name for bilingual SEO captions; None if unavailable."""
-    key = os.environ.get("SARVAM_API_KEY")
-    if not key:
-        return None
-    try:
-        return translate_to_telugu(name, key).strip()
-    except Exception:
-        return None
+    """Telugu-script dish name for bilingual SEO captions; None if unknown.
+
+    Dish names are romanized Telugu proper nouns, so we look them up in a
+    hand-verified map rather than translate them — a translation model invents
+    wrong words (e.g. "beef" for "vepudu"). Unknown dishes return None and the
+    caption falls back to the English-only title, which is clean and correct.
+    """
+    return TELUGU_DISH_NAMES.get(_normalize_dish(name))
 
 
 def _flame_word(celsius: int) -> str:
