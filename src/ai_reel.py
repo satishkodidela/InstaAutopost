@@ -122,6 +122,10 @@ def _pick_set() -> str:
     want = (os.environ.get("REEL_SET") or "").strip().lower()
     if want in SET_PRESETS:
         return want
+    if want in ("", "rotate", "auto"):
+        # "rotate"/"auto" = explicit daily rotation: GitHub repo Variables
+        # can't hold an empty value, so the knob needs a spelled-out default
+        want = ""
     if want:
         # A pin that silently falls back would rotate the look the owner
         # thought was locked — say so.
