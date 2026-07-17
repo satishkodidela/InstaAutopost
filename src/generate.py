@@ -15,6 +15,7 @@ Set POST_FORMAT=reel or POST_FORMAT=carousel to override the random draw.
 import json
 import os
 import random
+import re
 import sys
 import tempfile
 from datetime import datetime
@@ -145,29 +146,46 @@ def pick_bank_recipe(root: Path, posted: set[str], today) -> tuple[dict | None, 
     return _bank_recipe_from(random.choice(unposted)), None
 
 
+def _dish_hashtags(recipe: dict) -> str:
+    """Dish-specific tags on top of the broad set: the broad tags compete
+    with millions of posts; #KakarakayaVepudu-style tags own a niche."""
+    tags = []
+    latin = re.sub(r"[^A-Za-z]", "", recipe["name"])
+    if latin:
+        tags.append(f"#{latin}")
+    te_name = telugu_dish_name(recipe["name"])
+    if te_name:
+        tags.append("#" + te_name.replace(" ", ""))
+    return " ".join(tags)
+
+
 def build_caption(
     recipe: dict,
-    date_label: str,
     music: Path | None = None,
     challenge: tuple[dict, dict] | None = None,
 ) -> str:
-    # Bilingual keyword-first title: Instagram/Google index caption keywords,
-    # and the Telugu-script name doubles the searchable surface
-    title = f"{recipe['name']} recipe"
+    # Line 1 is the only line visible before "...more" — it carries the
+    # hook + the searchable dish name, never metadata. The old caption
+    # spent it on "(Telugu • Curry)" and a date line nobody needs.
+    hook = (recipe.get("hook") or "").strip()
+    line1 = f"🍽️ {recipe['name']}"
+    if hook:
+        line1 += f" — {hook}"
+    lines = [line1]
+    # Telugu-script name doubles the searchable surface (verified map only)
     te_name = telugu_dish_name(recipe["name"])
     if te_name:
-        title = f"{recipe['name']} | {te_name} recipe"
-    meta = " • ".join(filter(None, [recipe["area"], recipe["category"]]))
+        lines.append(f"{te_name} recipe")
     hashtags = HASHTAGS
-    lines = [f"🍽️ {title}"]
-    if meta:
-        lines.append(f"({meta})")
     if challenge:
         config, state = challenge
         lines.append(f"🏆 {config['name']} — Day {state['day']}/{config['days']}")
         if config.get("hashtags"):
             hashtags = f"{HASHTAGS} {config['hashtags']}"
-    lines += ["", f"📅 {date_label}", "", "🛒 Ingredients:"]
+    # ONE primary CTA, and for reference content it's Save — stacked asks
+    # (comment + send + follow all at once) kill each other.
+    lines += ["", "🔖 Save cheyandi — recipe mottham caption lo!"]
+    lines += ["", "🛒 Ingredients:"]
     lines += [
         f"• {item['measure']} {item['name']}".rstrip() for item in recipe["ingredients"]
     ]
@@ -175,14 +193,20 @@ def build_caption(
     lines += [f"{i}. {step}" for i, step in enumerate(recipe["steps"], start=1)]
     if recipe.get("youtube"):
         lines += ["", f"🎥 Video: {recipe['youtube']}"]
-    question = QUESTIONS[abs(hash(recipe["id"])) % len(QUESTIONS)]
-    lines += ["", question]
-    lines += ["📩 Send this to a foodie friend & 🔖 save it for later!"]
+    # Secondary ask rotates per post instead of stacking: a comment bait or
+    # a share nudge, never both.
+    secondary = QUESTIONS + ["📩 Mee intlo cook ki send cheyandi — try chestaru! 👇"]
+    lines += ["", secondary[abs(hash(recipe["id"])) % len(secondary)]]
     lines += [f"Follow @{HANDLE} for a new recipe every day! 🔔"]
-    credits = "Recipe data: TheMealDB"
+    # Source credit only where it's true (bank/custom recipes are our own),
+    # and no music credit when there is no music — "Recipe data: TheMealDB |
+    # Music: ..." read as a bot signature on every post.
+    credits = "Recipe data: TheMealDB" if recipe["id"].isdigit() else ""
     if music is not None:
-        credits += f" | Music: {music.stem}"
-    lines += ["", credits, "", hashtags]
+        credits = f"{credits} | Music: {music.stem}".strip(" |")
+    dish_tags = _dish_hashtags(recipe)
+    hashtags = f"{hashtags} {dish_tags}".strip()
+    lines += ["", credits, "", hashtags] if credits else ["", hashtags]
 
     caption = "\n".join(lines)
     # Instagram's limit is 2200; leave margin since it counts emoji
@@ -198,7 +222,6 @@ def build_caption(
 def main() -> None:
     now_ist = datetime.now(ZoneInfo("Asia/Kolkata"))
     date_str = now_ist.strftime("%Y-%m-%d")
-    date_label = now_ist.strftime("%A, %d %B %Y")
 
     root = Path(__file__).resolve().parent.parent
     posts_dir = root / "posts"
@@ -370,7 +393,7 @@ def main() -> None:
         (posts_dir / f"{date_str}.mp4").unlink(missing_ok=True)
 
     (posts_dir / f"{date_str}.txt").write_text(
-        build_caption(recipe, date_label, music, challenge), encoding="utf-8"
+        build_caption(recipe, music, challenge), encoding="utf-8"
     )
 
     posted.append(recipe["id"])
