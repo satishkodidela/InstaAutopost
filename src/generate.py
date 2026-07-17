@@ -339,14 +339,14 @@ def main() -> None:
         video_path = posts_dir / f"{date_str}.mp4"
 
         with tempfile.TemporaryDirectory() as work:
-            from ai_reel import BEAT_SECONDS, BEATS_PER_GEN, GEN_SECONDS, STYLE_BLOCK, TARGET_SECONDS
+            from ai_reel import BEAT_SECONDS, BEATS_PER_GEN, GEN_SECONDS, TARGET_SECONDS, style_for
             from storyboard import plan_reel
 
             n_gens = max(1, round(TARGET_SECONDS / GEN_SECONDS))
             # Plan the story ONCE: the same shot list drives both the video
             # beats and the per-shot Telangana narration, so the voice tracks
             # what is on screen. None => template beats + legacy English script.
-            plan = plan_reel(recipe, n_gens * BEATS_PER_GEN, STYLE_BLOCK)
+            plan = plan_reel(recipe, n_gens * BEATS_PER_GEN, style_for(recipe))
             narration = plan["narration"] if plan else None
             story = plan["beats"] if plan else None
             # Dish-specific on-screen hook from the planner; challenge and

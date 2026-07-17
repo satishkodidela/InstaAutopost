@@ -17,7 +17,9 @@ Design (per researched best practices, see FEEDBACK.md and plan):
 - Per-recipe story (storyboard.py): an LLM reads the actual recipe steps
   and directs the shots — dish-specific hook, authentic preparation
   moments in real cooking order. Template beats below are the fallback.
-  The kitchen set and lighting stay locked in every reel (brand look).
+  The set rotates daily across SET_PRESETS (constant within a reel), and
+  every prompt carries the recipe's prop bible (vessel/hand/ingredient
+  continuity) plus a vision-QC pass over the generated clips (qc.py).
 - Food-motion rules: camera locked or slow push-in only, food provides the
   motion, backlit steam, hands enter from frame edge, no "fast".
 - Seamless loop: the last beat mirrors the hook framing (rewatches); the
@@ -131,6 +133,40 @@ NEGATIVE = (
     "foam or froth in the oil, open flame directly on the table, thick "
     "pouring streams, an idle second hand."
 )
+
+
+def _vessel_for(recipe: dict) -> str:
+    """Canonical cooking vessel per dish type. Telugu homes fry in iron and
+    simmer pulusu in clay/steel — show-brass everywhere read as prop styling
+    to actual cooks, and the vessel changing identity mid-reel was the most
+    cited AI tell."""
+    text = f"{recipe.get('name', '')} {recipe.get('category', '')}".lower()
+    if any(w in text for w in ("payasam", "kheer", "halwa", "bobbatlu", "dessert", "sweet")):
+        return "a heavy-bottomed steel kadai"
+    if any(w in text for w in ("pulusu", "sambar", "rasam", "charu", "pappu", "curry", "gravy", "soup")):
+        return "a traditional dark clay pot"
+    return "a well-used black iron kadai"
+
+
+def prop_bible(recipe: dict) -> str:
+    """Continuity constraints appended to the style block so they reach the
+    storyboard LLM, every keyframe edit, AND every video prompt. Adjacent
+    shots showing a different vessel, a different hand, or a re-cut
+    ingredient are the tells that get AI food content called out."""
+    return (
+        f" Continuity rules for EVERY shot: all cooking happens in {_vessel_for(recipe)} "
+        "resting on a black cast-iron gas stove ring (never a flame directly on the "
+        "table); the same single medium-tan South Indian hand (slim fingers, no rings, "
+        "no watch) performs every action, entering from the frame edge; every ingredient "
+        "keeps the exact same cut and form in all shots; tempering shows clear shimmering "
+        "oil with mustard seeds crackling, never foam; powders sprinkle from a small "
+        "brass spoon, never crumbled from fingers; liquids pour in thin streams."
+    )
+
+
+def style_for(recipe: dict) -> str:
+    """The day's set preset + the recipe's prop bible — the full locked look."""
+    return STYLE_BLOCK + prop_bible(recipe)
 
 # Karaoke captions (Telugu). Bundled Noto Sans Telugu so libass renders the
 # script on CI (ubuntu ships no Telugu font). ASS colours are &HAABBGGRR.
@@ -250,7 +286,7 @@ def build_generation_prompts(
         )
     else:
         beats = build_beats(recipe, n_gens, story=story)
-    style = STYLE_BLOCK
+    style = style_for(recipe)
 
     prompts = []
     for g in range(n_gens):
@@ -733,10 +769,17 @@ def assemble_reel(
             cmd = [ff, "-y", "-i", str(clip)]
             # setsar=1 everywhere: scale+crop can tag a fractional SAR (e.g.
             # 480p sources), and concat hard-fails on any SAR mismatch
-            # between punched and un-punched segments
+            # between punched and un-punched segments. The mild eq lift
+            # (REEL_GRADE=0 disables) counteracts the model's muddy
+            # brown-on-brown tendency — measured up to 50% of pixels
+            # crushed below Y=40 on a phone-in-daylight viewing.
+            grade = (
+                "" if os.environ.get("REEL_GRADE") == "0"
+                else ",eq=brightness=0.03:contrast=1.03:saturation=1.12"
+            )
             base = (
                 f"[0:v]scale={REEL_W}:{REEL_H}:force_original_aspect_ratio=increase,"
-                f"crop={REEL_W}:{REEL_H},fps={FPS},setsar=1"
+                f"crop={REEL_W}:{REEL_H}{grade},fps={FPS},setsar=1"
             )
             if len(segs) > 1:
                 parts = [f"{base}[vbase]",
@@ -923,7 +966,7 @@ def make_ai_reel(
     # prepared. generate.py plans it once (with narration) and passes the
     # beats in; only plan here when called standalone (e.g. tests).
     if story is None:
-        story = plan_story(recipe, n_gens * BEATS_PER_GEN, STYLE_BLOCK)
+        story = plan_story(recipe, n_gens * BEATS_PER_GEN, style_for(recipe))
     if story:
         print(f"  story planned: {len(story)} shots", flush=True)
     # Keyframe chain (K0..Kn) for first/last-frame conditioning; images are
@@ -937,7 +980,7 @@ def make_ai_reel(
         try:
             beats = build_beats(recipe, n_gens, story=story)
             keyframes = generate_keyframes(
-                recipe, beats, BEATS_PER_GEN, n_gens, STYLE_BLOCK, ref_image, kie_key
+                recipe, beats, BEATS_PER_GEN, n_gens, style_for(recipe), ref_image, kie_key
             )
             print(f"  {len(keyframes)} boundary keyframes generated", flush=True)
         except Exception as exc:
@@ -951,7 +994,57 @@ def make_ai_reel(
             clips = generate_clips_veo(prompts, ref_image, Path(tmp), keyframes)
         else:
             clips = generate_clips(prompts, ref_image, key, Path(tmp), keyframes)
+
+        # Vision QC (REEL_QC=0 disables): a vessel that changes identity, a
+        # flame floating on the table, or a morphing ingredient gets the
+        # account read as AI slop. Flagged clips are regenerated ONCE, at
+        # most two per reel (bounded respend); QC never blocks the post.
+        if (os.environ.get("REEL_QC") or "1") != "0" and os.environ.get("GEMINI_API_KEY"):
+            from qc import qc_clips
+
+            bad = qc_clips(_ffmpeg(), clips, prompts, recipe, _vessel_for(recipe))
+            for i in bad[:2]:
+                if key and get_credits(key) < GEN_SECONDS * CREDITS_PER_SECOND:
+                    print("  Kie credits too low to regenerate flagged clips", flush=True)
+                    break
+                print(f"  regenerating flagged clip {i + 1}...", flush=True)
+                try:
+                    clips[i] = _regenerate_clip(i, prompts, ref_image, key, Path(tmp), keyframes)
+                except Exception as exc:
+                    print(f"  regeneration failed ({exc}); keeping the original clip", flush=True)
+
         assemble_reel(
             clips, recipe, handle, out_path, voiceover, music,
             chained=keyframes is not None,
         )
+
+
+def _regenerate_clip(
+    i: int,
+    prompts: list[str],
+    ref_image: str | None,
+    key: str | None,
+    out_dir: Path,
+    keyframes: list[str] | None,
+) -> Path:
+    """One fresh generation of clip i (same prompt, same boundary frames)."""
+    if BACKEND == "veo":
+        # generate_clips_veo names outputs by list position — use a subdir
+        # so regenerating clip 2 can't overwrite clip 0's file
+        sub_dir = out_dir / f"retry{i}"
+        sub_dir.mkdir(exist_ok=True)
+        kf = keyframes[i:i + 2] if keyframes else None
+        return generate_clips_veo([prompts[i]], ref_image, sub_dir, kf)[0]
+    frames = (keyframes[i], keyframes[i + 1]) if keyframes else None
+    path = out_dir / f"gen{i:02d}_retry.mp4"
+    try:
+        task_id = create_task(KIE_MODEL, _task_input(prompts[i], ref_image, True, frames), key)
+        url = poll_task(task_id, key, exts="mp4")
+    except RuntimeError as exc:
+        # Same audio-filter false positive handling as generate_clips
+        if "audio" not in str(exc).lower():
+            raise
+        task_id = create_task(KIE_MODEL, _task_input(prompts[i], ref_image, False, frames), key)
+        url = poll_task(task_id, key, exts="mp4")
+    download(url, path)
+    return path
