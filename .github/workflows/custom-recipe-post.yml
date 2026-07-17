@@ -46,6 +46,12 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      # libfribidi lets Pillow's bundled raqm shape Telugu overlay text
+      # (without it, conjuncts render broken and the hook falls back to
+      # English — see ai_reel.assemble_reel)
+      - name: Install text-shaping library
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libfribidi0
+
       - name: Build recipe from form inputs
         env:
           RECIPE_NAME: ${{ inputs.name }}
@@ -74,6 +80,7 @@ jobs:
           ELEVEN_LABS_VOICE_ID: ${{ vars.ELEVEN_LABS_VOICE_ID }}
           ELEVEN_LABS_MODEL: ${{ vars.ELEVEN_LABS_MODEL }}
           REEL_CAPTIONS: ${{ vars.REEL_CAPTIONS }}
+          REEL_MUSIC: ${{ vars.REEL_MUSIC }}
         run: python -u src/generate.py
 
       - name: Commit and push media (Instagram needs public URLs)

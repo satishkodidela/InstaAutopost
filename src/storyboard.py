@@ -11,10 +11,28 @@ and callers fall back to the template beats / mechanical English script.
 
 import json
 import os
+import re
+from datetime import date
 
 # The -latest alias tracks the current flash model; pinned versions get
 # retired for new billing accounts (gemini-2.5-flash 404s as of 2026-07)
 STORY_MODEL = os.environ.get("STORY_MODEL") or "gemini-flash-latest"
+
+# On-screen hook archetypes, rotated by day so the feed never shows the same
+# templated line twice in a row ("Only N ingredients!" ran every single day).
+# The LLM writes the actual line from the recipe's own differentiator.
+HOOK_ARCHETYPES = [
+    "objection-killer: name the doubt everyone has about this dish "
+    "(too bitter, too oily, soggy, hard to get right) and promise this "
+    "recipe solves it",
+    "secret trick: tease the ONE technique in these steps that changes "
+    "the result",
+    "common mistake: call out the mistake most people make with this dish",
+    "craving/nostalgia: the amma's-kitchen or childhood-memory angle that "
+    "makes a Telugu viewer stop",
+    "bold claim: a confident, specific claim about taste or texture this "
+    "recipe earns",
+]
 
 
 def _prompt(recipe: dict, n_beats: int, style_block: str, narrate: bool) -> str:
@@ -40,6 +58,17 @@ def _prompt(recipe: dict, n_beats: int, style_block: str, narrate: bool) -> str:
             '{"shot": "<one vivid sentence describing what the camera sees>", '
             '"camera": "fixed" or "slow push-in"}'
         )
+
+    archetype = HOOK_ARCHETYPES[date.today().timetuple().tm_yday % len(HOOK_ARCHETYPES)]
+    hook_rules = f"""
+- The FIRST item must ALSO carry a key "hook": the on-screen headline for
+  shot 1. Write it as this archetype — {archetype}. Rules: max 7 words,
+  conversational code-mixed Telugu written ENTIRELY in Telugu script —
+  everyday English words transliterated into Telugu letters (ట్రిక్,
+  సీక్రెట్, పర్ఫెక్ట్) are perfect. No Latin letters, no digits, no emoji
+  (the overlay font only has Telugu glyphs). Concrete to THIS dish — never
+  a generic line like "Only N ingredients!" — and a claim the recipe
+  actually delivers."""
 
     vo_rules = ""
     if narrate:
@@ -80,20 +109,25 @@ Rules — realism above all:
   actually made: the real technique, textures, and physical actions a home
   cook performs (how batter is spread, how a tadka crackles, how dough is
   rolled). Never invent steps that are not in the recipe.
-- Shot 1 is the hook: the single most scroll-stopping, appetizing moment
-  unique to this dish (a process moment or the finished dish — whichever is
-  more striking for this recipe).
+- Shot 1 is the hook and MUST show the FINISHED {name} at its most
+  appetizing — glossy, textured, steaming, ready to eat. Never a raw,
+  mid-boil, or half-cooked state: the first frame decides the scroll, and
+  wet mid-cook food loses it.
 - Shot 2 shows the key ingredients laid out in small brass bowls on the
-  counter (a text overlay lists them during this shot).
+  counter (a text overlay points to the caption during this shot).
 - Middle shots: the defining preparation moments IN ORDER, as one continuous
   process — each shot advancing the cooking from the previous, no jumps. Pick
-  the most important transformations and show the dish visibly progressing.
-- The shot BEFORE the last must show the dish almost done (nearly cooked /
-  plating up), so the final reveal feels earned, not sudden.
+  the most important transformations and show the dish visibly progressing,
+  including the moment the dish reaches its final cooked texture.
+- If there are at least 5 shots, the SECOND-TO-LAST shot must be the serving
+  payoff: the finished {name} served the way it is actually eaten (over hot
+  steaming rice, onto a plate or banana leaf, a spoon lifting a portion) —
+  this is the moment a Telugu viewer shares.
 - The final shot recreates shot 1's framing with the finished {name},
-  garnished and steaming, for a seamless loop.
+  garnished and steaming, and must END MID-ACTION (steam still rising, a
+  sprinkle mid-fall) so looping back to shot 1 reads as continuous motion.
 - Fixed setting, identical in every shot: {style_block}
-- No people's faces, no fast motion, no artificial speed changes.{angle}{vo_rules}
+- No people's faces, no fast motion, no artificial speed changes.{angle}{hook_rules}{vo_rules}
 
 Return ONLY the JSON array, no markdown."""
 
@@ -150,18 +184,32 @@ def _beat(shot: dict) -> str:
 
 
 def plan_reel(recipe: dict, n_beats: int, style_block: str) -> dict | None:
-    """{'beats': [...], 'narration': [...]}, both length n_beats, or None.
+    """{'beats': [...], 'narration': [...], 'hook': str|None}, or None.
 
     beats drive the video prompts/keyframes; narration is the per-shot
-    Telangana-Telugu voiceover, aligned 1:1 to the beats.
+    Telangana-Telugu voiceover, aligned 1:1 to the beats; hook is the
+    on-screen headline for shot 1 (dish-specific, archetype-rotated).
     """
     try:
         shots = _generate_shots(recipe, n_beats, style_block, narrate=True)
         if not shots:
             return None
+        hook = (shots[0].get("hook") or "").strip() or None
+        # The overlay renders each block with ONE font: Noto Sans Telugu has
+        # no Latin letters and no emoji, DejaVu has no Telugu. A Telugu hook
+        # must therefore contain ONLY glyphs Noto Telugu covers (whitelist —
+        # a blacklist can't anticipate every emoji/foreign script the LLM
+        # might sneak in); a pure-Latin hook renders via DejaVu and is fine.
+        if hook and re.search(r"[ఀ-౿]", hook):
+            if not re.fullmatch(
+                r"[ఀ-౿0-9\s‌‍.,:;!?'\"“”‘’\-–—…()]+", hook
+            ):
+                print(f"  hook has unrenderable characters, dropping: {hook}", flush=True)
+                hook = None
         return {
             "beats": [_beat(s) for s in shots],
             "narration": [(s.get("vo") or "").strip() for s in shots],
+            "hook": hook,
         }
     except Exception as exc:
         print(f"  story planning failed ({exc}); using template beats", flush=True)
