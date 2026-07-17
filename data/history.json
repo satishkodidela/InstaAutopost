@@ -250,5 +250,14 @@
     "format": "reel",
     "kind": "ai",
     "voiceover": "te"
+  },
+  {
+    "date": "2026-07-17",
+    "name": "Punugulu",
+    "category": "Snack",
+    "area": "Telugu",
+    "format": "carousel",
+    "kind": null,
+    "voiceover": null
   }
 ]
