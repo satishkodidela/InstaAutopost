@@ -119,11 +119,18 @@ SET_PRESETS = {
 
 
 def _pick_set() -> str:
-    name = os.environ.get("REEL_SET")
-    if name not in SET_PRESETS:
-        names = sorted(SET_PRESETS)
-        name = names[date.today().toordinal() % len(names)]
-    return name
+    want = (os.environ.get("REEL_SET") or "").strip().lower()
+    if want in SET_PRESETS:
+        return want
+    if want:
+        # A pin that silently falls back would rotate the look the owner
+        # thought was locked — say so.
+        print(
+            f"REEL_SET={want!r} is not a preset ({', '.join(sorted(SET_PRESETS))}); rotating",
+            flush=True,
+        )
+    names = sorted(SET_PRESETS)
+    return names[date.today().toordinal() % len(names)]
 
 
 SET_NAME = _pick_set()
@@ -152,15 +159,19 @@ def prop_bible(recipe: dict) -> str:
     """Continuity constraints appended to the style block so they reach the
     storyboard LLM, every keyframe edit, AND every video prompt. Adjacent
     shots showing a different vessel, a different hand, or a re-cut
-    ingredient are the tells that get AI food content called out."""
+    ingredient are the tells that get AI food content called out.
+
+    Phrased POSITIVELY only: this string reaches Veo prompts, where
+    negations get rendered instead of avoided (the Seedance-only NEGATIVE
+    line carries the avoid-list)."""
     return (
         f" Continuity rules for EVERY shot: all cooking happens in {_vessel_for(recipe)} "
-        "resting on a black cast-iron gas stove ring (never a flame directly on the "
-        "table); the same single medium-tan South Indian hand (slim fingers, no rings, "
-        "no watch) performs every action, entering from the frame edge; every ingredient "
-        "keeps the exact same cut and form in all shots; tempering shows clear shimmering "
-        "oil with mustard seeds crackling, never foam; powders sprinkle from a small "
-        "brass spoon, never crumbled from fingers; liquids pour in thin streams."
+        "resting on a black cast-iron gas stove ring on the counter; exactly one "
+        "medium-tan South Indian hand (slim fingers, bare of rings and watch) performs "
+        "every action, entering from the frame edge; every ingredient keeps the exact "
+        "same cut and form in all shots; tempering shows clear shimmering oil with "
+        "mustard seeds crackling; powders sprinkle from a small brass spoon as loose "
+        "dry granules; liquids pour in thin streams."
     )
 
 
@@ -217,10 +228,12 @@ def build_beats(
     # process visibly USES what the ingredients shot showed.
     n_action = max(1, n_gens * BEATS_PER_GEN - 5)
     stride = max(1, len(steps) // n_action)
+    # Bowls/counter stay unnamed here: the set preset (SET_PRESETS) owns the
+    # look, and naming brass/dark-wood in the beats fought 4 of 5 presets
     actions = [
         (
             f"hands entering from frame edge, {_action_fragment(steps[min(i * stride, len(steps) - 1)])}, "
-            f"using the same ingredients and brass bowls from the earlier shot, one precise action"
+            f"using the same ingredients and small bowls from the earlier shot, one precise action"
         )
         for i in range(n_action)
     ]
@@ -230,8 +243,8 @@ def build_beats(
         f"steam rising, a spoon lifting one portion, glossy texture. Camera: slow push-in."
     )
     ingredients = (
-        f"Overhead shot of the exact ingredients for {name} in small brass "
-        f"bowls on the dark wood counter: {ing_list} — these same ingredients "
+        f"Overhead shot of the exact ingredients for {name}, exactly one small "
+        f"bowl per ingredient on the counter: {ing_list} — these same ingredients "
         f"are used in the following cooking shots. Camera: fixed."
     )
     # Serving payoff is the share moment for a Telugu audience (the rice
@@ -964,7 +977,11 @@ def make_ai_reel(
     ref_image = recipe.get("thumb") or None
     # Per-recipe story: the shot list comes from how the dish is actually
     # prepared. generate.py plans it once (with narration) and passes the
-    # beats in; only plan here when called standalone (e.g. tests).
+    # beats in; only plan here when called standalone (e.g. tests), i.e.
+    # story is None. An EMPTY list means the caller already tried and
+    # failed — re-planning here could succeed on retry and produce video
+    # beats the already-made voiceover (built against the template script)
+    # doesn't describe.
     if story is None:
         story = plan_story(recipe, n_gens * BEATS_PER_GEN, style_for(recipe))
     if story:
@@ -1004,14 +1021,16 @@ def make_ai_reel(
 
             bad = qc_clips(_ffmpeg(), clips, prompts, recipe, _vessel_for(recipe))
             for i in bad[:2]:
-                if key and get_credits(key) < GEN_SECONDS * CREDITS_PER_SECOND:
-                    print("  Kie credits too low to regenerate flagged clips", flush=True)
-                    break
-                print(f"  regenerating flagged clip {i + 1}...", flush=True)
+                # Everything here is best-effort: the clips are already paid
+                # for, so no failure (credit probe included) may abort them
                 try:
+                    if key and get_credits(key) < GEN_SECONDS * CREDITS_PER_SECOND:
+                        print("  Kie credits too low to regenerate flagged clips", flush=True)
+                        break
+                    print(f"  regenerating flagged clip {i + 1}...", flush=True)
                     clips[i] = _regenerate_clip(i, prompts, ref_image, key, Path(tmp), keyframes)
                 except Exception as exc:
-                    print(f"  regeneration failed ({exc}); keeping the original clip", flush=True)
+                    print(f"  regeneration skipped ({exc}); keeping the original clip", flush=True)
 
         assemble_reel(
             clips, recipe, handle, out_path, voiceover, music,
@@ -1027,24 +1046,14 @@ def _regenerate_clip(
     out_dir: Path,
     keyframes: list[str] | None,
 ) -> Path:
-    """One fresh generation of clip i (same prompt, same boundary frames)."""
+    """One fresh generation of clip i (same prompt, same boundary frames).
+
+    Reuses the normal generators on a one-prompt list — including their
+    audio-filter retry logic — in a subdir, because both name outputs by
+    list position and regenerating clip 2 must not overwrite clip 0."""
+    sub_dir = out_dir / f"retry{i}"
+    sub_dir.mkdir(exist_ok=True)
+    kf = keyframes[i:i + 2] if keyframes else None
     if BACKEND == "veo":
-        # generate_clips_veo names outputs by list position — use a subdir
-        # so regenerating clip 2 can't overwrite clip 0's file
-        sub_dir = out_dir / f"retry{i}"
-        sub_dir.mkdir(exist_ok=True)
-        kf = keyframes[i:i + 2] if keyframes else None
         return generate_clips_veo([prompts[i]], ref_image, sub_dir, kf)[0]
-    frames = (keyframes[i], keyframes[i + 1]) if keyframes else None
-    path = out_dir / f"gen{i:02d}_retry.mp4"
-    try:
-        task_id = create_task(KIE_MODEL, _task_input(prompts[i], ref_image, True, frames), key)
-        url = poll_task(task_id, key, exts="mp4")
-    except RuntimeError as exc:
-        # Same audio-filter false positive handling as generate_clips
-        if "audio" not in str(exc).lower():
-            raise
-        task_id = create_task(KIE_MODEL, _task_input(prompts[i], ref_image, False, frames), key)
-        url = poll_task(task_id, key, exts="mp4")
-    download(url, path)
-    return path
+    return generate_clips([prompts[i]], ref_image, key, sub_dir, kf)[0]

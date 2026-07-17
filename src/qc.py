@@ -17,17 +17,26 @@ import re
 import subprocess
 from pathlib import Path
 
-QC_MODEL = os.environ.get("STORY_MODEL") or "gemini-flash-latest"
+# Deliberately NOT the STORY_MODEL tunable: QC forces thinking_budget=0,
+# which pro-tier Gemini models reject — pinning STORY_MODEL to a pro model
+# for better storyboards must not silently disable the vision gate.
+QC_MODEL = os.environ.get("QC_MODEL") or "gemini-flash-latest"
+
+
+def _shot_plan(prompt: str) -> str:
+    """The shot-specific part of a generation prompt. Every prompt opens
+    with ~870 chars of shared header + style block + prop bible; the QC
+    model needs the timed beats ("[0s] ..." / "[00:00-00:04] ..."), not
+    identical boilerplate for every clip."""
+    m = re.search(r"\[0+s?\]|\[00:", prompt)
+    return prompt[m.start():][:600] if m else prompt[-600:]
 
 
 def _frames(ff: str, clip: Path, fracs: tuple[float, ...] = (0.25, 0.75)) -> list[bytes]:
     """Small JPEG frames sampled inside the clip (as bytes)."""
-    probe = subprocess.run([ff, "-i", str(clip)], capture_output=True, text=True)
-    m = re.search(r"Duration: (\d+):(\d+):([\d.]+)", probe.stderr)
-    dur = (
-        float(m.group(1)) * 3600 + float(m.group(2)) * 60 + float(m.group(3))
-        if m else 8.0
-    )
+    from ai_reel import _media_duration  # lazy: ai_reel imports qc lazily too
+
+    dur = _media_duration(ff, clip) or 8.0
     out = []
     for f in fracs:
         r = subprocess.run(
@@ -53,7 +62,7 @@ def qc_clips(ff: str, clips: list[Path], prompts: list[str], recipe: dict, vesse
             frames = _frames(ff, clip)
             if not frames:
                 continue
-            labels.append(f"Clip {i}: {len(frames)} frames. Planned shots: {prompts[i][:400]}")
+            labels.append(f"Clip {i}: {len(frames)} frames. Planned shots: {_shot_plan(prompts[i])}")
             for frame in frames:
                 parts.append(types.Part.from_bytes(data=frame, mime_type="image/jpeg"))
         ing = ", ".join(x["name"] for x in recipe["ingredients"])

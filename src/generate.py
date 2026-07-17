@@ -167,9 +167,12 @@ def build_caption(
     # Line 1 is the only line visible before "...more" — it carries the
     # hook + the searchable dish name, never metadata. The old caption
     # spent it on "(Telugu • Curry)" and a date line nobody needs.
+    # Challenge posts skip the hook here: their hook IS the day counter,
+    # and the 🏆 line below already carries it — repeating it back-to-back
+    # in the two visible lines reads as bot text.
     hook = (recipe.get("hook") or "").strip()
     line1 = f"🍽️ {recipe['name']}"
-    if hook:
+    if hook and not challenge:
         line1 += f" — {hook}"
     lines = [line1]
     # Telugu-script name doubles the searchable surface (verified map only)
@@ -348,7 +351,11 @@ def main() -> None:
             # what is on screen. None => template beats + legacy English script.
             plan = plan_reel(recipe, n_gens * BEATS_PER_GEN, style_for(recipe))
             narration = plan["narration"] if plan else None
-            story = plan["beats"] if plan else None
+            # [] (not None) on failure: it tells make_ai_reel planning was
+            # already attempted, so it must not re-plan — a retry that
+            # succeeds there would desync the video from the voiceover
+            # that was built against the template script below.
+            story = plan["beats"] if plan else []
             # Dish-specific on-screen hook from the planner; challenge and
             # festival hooks (set above) keep priority.
             if plan and plan.get("hook") and not recipe.get("hook"):
