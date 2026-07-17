@@ -17,7 +17,9 @@ Design (per researched best practices, see FEEDBACK.md and plan):
 - Per-recipe story (storyboard.py): an LLM reads the actual recipe steps
   and directs the shots — dish-specific hook, authentic preparation
   moments in real cooking order. Template beats below are the fallback.
-  The kitchen set and lighting stay locked in every reel (brand look).
+  The set rotates daily across SET_PRESETS (constant within a reel), and
+  every prompt carries the recipe's prop bible (vessel/hand/ingredient
+  continuity) plus a vision-QC pass over the generated clips (qc.py).
 - Food-motion rules: camera locked or slow push-in only, food provides the
   motion, backlit steam, hands enter from frame edge, no "fast".
 - Seamless loop: the last beat mirrors the hook framing (rewatches); the
@@ -43,6 +45,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+from datetime import date
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -78,14 +81,103 @@ PUNCH_ZOOM = 1.32
 MIN_PUNCH_SPAN = 3.0
 PUNCH_AT = 0.55
 
-# Locked brand look: one kitchen, one light, in every reel (owner decision).
-# Variety comes from the per-recipe story (storyboard.py), not the set.
-STYLE_BLOCK = (
-    "Warm rustic South Indian kitchen, dark wood counter, brass and steel "
-    "utensils, golden 45-degree side lighting, shallow depth of field, "
-    "photorealistic vertical 9:16 food film."
+# Set presets, one per day (rotated deterministically; pin via REEL_SET).
+# The identical dark-brass set every single day made three weeks of reels
+# visually interchangeable in the feed — brand consistency now comes from
+# the text style and the voice, not a repeated backdrop. The set stays
+# constant WITHIN a reel (keyframe chaining locks the look per run). The
+# old "dark moody" grade also crushed up to 50% of pixels below Y=40 —
+# every preset now asks for readable, appetizing light.
+SET_PRESETS = {
+    "brass-classic": (
+        "Warm rustic South Indian kitchen, dark wood counter, brass and steel "
+        "utensils, golden 45-degree side lighting lifted with a soft warm fill "
+        "(shadows stay readable, never crushed), shallow depth of field, "
+        "photorealistic vertical 9:16 food film."
+    ),
+    "daylight-home": (
+        "Bright airy South Indian home kitchen, soft morning window light, "
+        "cream tiled wall, worn wooden counter, steel utensils, gentle "
+        "shadows, fresh natural colors, photorealistic vertical 9:16 food film."
+    ),
+    "stone-iron": (
+        "Rough grey stone countertop, well-used black iron cookware, warm "
+        "directional side light with visible texture, scattered whole spices, "
+        "clean readable exposure, photorealistic vertical 9:16 food film."
+    ),
+    "banana-leaf": (
+        "Fresh green banana leaf spread on a worn teak table, polished steel "
+        "and clay serveware, soft diffused daylight, vibrant natural colors, "
+        "photorealistic vertical 9:16 food film."
+    ),
+    "village-clay": (
+        "Village-style earthen kitchen, terracotta clay pots, mud-toned wall, "
+        "warm late-afternoon light with a soft fill, photorealistic vertical "
+        "9:16 food film."
+    ),
+}
+
+
+def _pick_set() -> str:
+    want = (os.environ.get("REEL_SET") or "").strip().lower()
+    if want in SET_PRESETS:
+        return want
+    if want:
+        # A pin that silently falls back would rotate the look the owner
+        # thought was locked — say so.
+        print(
+            f"REEL_SET={want!r} is not a preset ({', '.join(sorted(SET_PRESETS))}); rotating",
+            flush=True,
+        )
+    names = sorted(SET_PRESETS)
+    return names[date.today().toordinal() % len(names)]
+
+
+SET_NAME = _pick_set()
+STYLE_BLOCK = SET_PRESETS[SET_NAME]
+NEGATIVE = (
+    "Avoid jitter, warped hands, artificial speed changes, fast motion, "
+    "foam or froth in the oil, open flame directly on the table, thick "
+    "pouring streams, an idle second hand."
 )
-NEGATIVE = "Avoid jitter, warped hands, artificial speed changes, fast motion."
+
+
+def _vessel_for(recipe: dict) -> str:
+    """Canonical cooking vessel per dish type. Telugu homes fry in iron and
+    simmer pulusu in clay/steel — show-brass everywhere read as prop styling
+    to actual cooks, and the vessel changing identity mid-reel was the most
+    cited AI tell."""
+    text = f"{recipe.get('name', '')} {recipe.get('category', '')}".lower()
+    if any(w in text for w in ("payasam", "kheer", "halwa", "bobbatlu", "dessert", "sweet")):
+        return "a heavy-bottomed steel kadai"
+    if any(w in text for w in ("pulusu", "sambar", "rasam", "charu", "pappu", "curry", "gravy", "soup")):
+        return "a traditional dark clay pot"
+    return "a well-used black iron kadai"
+
+
+def prop_bible(recipe: dict) -> str:
+    """Continuity constraints appended to the style block so they reach the
+    storyboard LLM, every keyframe edit, AND every video prompt. Adjacent
+    shots showing a different vessel, a different hand, or a re-cut
+    ingredient are the tells that get AI food content called out.
+
+    Phrased POSITIVELY only: this string reaches Veo prompts, where
+    negations get rendered instead of avoided (the Seedance-only NEGATIVE
+    line carries the avoid-list)."""
+    return (
+        f" Continuity rules for EVERY shot: all cooking happens in {_vessel_for(recipe)} "
+        "resting on a black cast-iron gas stove ring on the counter; exactly one "
+        "medium-tan South Indian hand (slim fingers, bare of rings and watch) performs "
+        "every action, entering from the frame edge; every ingredient keeps the exact "
+        "same cut and form in all shots; tempering shows clear shimmering oil with "
+        "mustard seeds crackling; powders sprinkle from a small brass spoon as loose "
+        "dry granules; liquids pour in thin streams."
+    )
+
+
+def style_for(recipe: dict) -> str:
+    """The day's set preset + the recipe's prop bible — the full locked look."""
+    return STYLE_BLOCK + prop_bible(recipe)
 
 # Karaoke captions (Telugu). Bundled Noto Sans Telugu so libass renders the
 # script on CI (ubuntu ships no Telugu font). ASS colours are &HAABBGGRR.
@@ -136,10 +228,12 @@ def build_beats(
     # process visibly USES what the ingredients shot showed.
     n_action = max(1, n_gens * BEATS_PER_GEN - 5)
     stride = max(1, len(steps) // n_action)
+    # Bowls/counter stay unnamed here: the set preset (SET_PRESETS) owns the
+    # look, and naming brass/dark-wood in the beats fought 4 of 5 presets
     actions = [
         (
             f"hands entering from frame edge, {_action_fragment(steps[min(i * stride, len(steps) - 1)])}, "
-            f"using the same ingredients and brass bowls from the earlier shot, one precise action"
+            f"using the same ingredients and small bowls from the earlier shot, one precise action"
         )
         for i in range(n_action)
     ]
@@ -149,8 +243,8 @@ def build_beats(
         f"steam rising, a spoon lifting one portion, glossy texture. Camera: slow push-in."
     )
     ingredients = (
-        f"Overhead shot of the exact ingredients for {name} in small brass "
-        f"bowls on the dark wood counter: {ing_list} — these same ingredients "
+        f"Overhead shot of the exact ingredients for {name}, exactly one small "
+        f"bowl per ingredient on the counter: {ing_list} — these same ingredients "
         f"are used in the following cooking shots. Camera: fixed."
     )
     # Serving payoff is the share moment for a Telugu audience (the rice
@@ -205,7 +299,7 @@ def build_generation_prompts(
         )
     else:
         beats = build_beats(recipe, n_gens, story=story)
-    style = STYLE_BLOCK
+    style = style_for(recipe)
 
     prompts = []
     for g in range(n_gens):
@@ -361,12 +455,13 @@ def generate_clips_veo(
 _TELUGU_RE = re.compile(r"[ఀ-౿]")
 
 
-def _overlay_font(texts: list[str], size: int):
+def _overlay_font(text: str, size: int):
     """DejaVu/Arial have no Telugu glyphs and the bundled Noto Sans Telugu
-    has NO Latin letters, so each text block is routed whole to the one font
-    that covers it. Blocks must therefore stay single-script — enforced by
-    the hook whitelist in storyboard.plan_reel."""
-    if any(_TELUGU_RE.search(t) for t in texts) and CAPTION_FONT_FILE.exists():
+    has NO Latin letters, so each LINE is routed whole to the one font that
+    covers it (a Telugu name pill can sit above a Latin one, but a single
+    line must stay single-script — enforced by the hook whitelist in
+    storyboard.plan_reel)."""
+    if _TELUGU_RE.search(text) and CAPTION_FONT_FILE.exists():
         return _font([str(CAPTION_FONT_FILE), *FONT_CANDIDATES_BOLD], size)
     return _font(FONT_CANDIDATES_BOLD, size)
 
@@ -377,48 +472,49 @@ def _overlay_png(
     out_path: Path,
     bottom_size: int = 46,
 ) -> None:
-    """Transparent overlay; text kept inside IG safe zones."""
+    """Transparent overlay; text kept inside IG safe zones. Fonts are chosen
+    per line, and pill heights come from real font metrics: Telugu conjunct
+    descenders are far deeper than Latin (Noto Telugu Bold @64 needs ascent
+    56 + descent 31) and would overflow a fixed-height pill onto the footage.
+    """
     img = Image.new("RGBA", (REEL_W, REEL_H), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
-    top_font = _overlay_font(lines_top, 64)
-    bottom_font = _overlay_font(lines_bottom, bottom_size)
-
     scratch = ImageDraw.Draw(Image.new("RGB", (1, 1)))
-    top_wrapped = [
-        ln for t in lines_top for ln in _wrap(scratch, t, top_font, REEL_W - 200)
-    ]
-    bottom_wrapped = [
-        ln for t in lines_bottom for ln in _wrap(scratch, t, bottom_font, REEL_W - 240)
-    ]
 
-    # Pill heights come from real font metrics: Telugu conjunct descenders
-    # are far deeper than Latin (Noto Telugu Bold @64 needs ascent 56 +
-    # descent 31) and would overflow a fixed-height pill onto the footage.
-    t_asc, t_desc = top_font.getmetrics()
+    def wrap_items(texts: list[str], size: int, max_w: int) -> list[tuple[str, object]]:
+        items = []
+        for t in texts:
+            font = _overlay_font(t, size)
+            for ln in _wrap(scratch, t, font, max_w):
+                items.append((ln, font))
+        return items
+
     y = SAFE_TOP
-    for line in top_wrapped:
-        w = draw.textlength(line, font=top_font)
+    for line, font in wrap_items(lines_top, 64, REEL_W - 200):
+        asc, desc = font.getmetrics()
+        w = draw.textlength(line, font=font)
         x = (REEL_W - w) / 2
         draw.rounded_rectangle(
-            [x - 24, y - 10, x + w + 24, y + t_asc + t_desc + 6],
+            [x - 24, y - 10, x + w + 24, y + asc + desc + 6],
             radius=16, fill=(20, 12, 8, 200)
         )
-        draw.text((x, y), line, font=top_font, fill=(255, 255, 255, 255))
-        y += t_asc + t_desc + 20
+        draw.text((x, y), line, font=font, fill=(255, 255, 255, 255))
+        y += asc + desc + 20
 
-    b_asc, b_desc = bottom_font.getmetrics()
-    line_h = b_asc + b_desc + 16
-    y = REEL_H - SAFE_BOTTOM - len(bottom_wrapped) * line_h
-    for line in bottom_wrapped:
-        w = draw.textlength(line, font=bottom_font)
+    bottom_items = wrap_items(lines_bottom, bottom_size, REEL_W - 240)
+    total_h = sum(f.getmetrics()[0] + f.getmetrics()[1] + 16 for _, f in bottom_items)
+    y = REEL_H - SAFE_BOTTOM - total_h
+    for line, font in bottom_items:
+        asc, desc = font.getmetrics()
+        w = draw.textlength(line, font=font)
         x = (REEL_W - w) / 2
         draw.rounded_rectangle(
-            [x - 20, y - 8, x + w + 20, y + b_asc + b_desc + 4],
+            [x - 20, y - 8, x + w + 20, y + asc + desc + 4],
             radius=14,
             fill=ACCENT + (230,),
         )
-        draw.text((x, y), line, font=bottom_font, fill=(255, 255, 255, 255))
-        y += line_h
+        draw.text((x, y), line, font=font, fill=(255, 255, 255, 255))
+        y += asc + desc + 16
     img.save(out_path, "PNG")
 
 
@@ -576,20 +672,30 @@ def assemble_reel(
 ) -> None:
     ff = _ffmpeg()
     n_ing = len(recipe["ingredients"])
-    # Challenge/festival hooks carry emoji no overlay font covers — strip
-    # rather than render tofu boxes in the headline.
-    hook_text = _strip_unrenderable(recipe.get("hook") or "")
     # Telugu needs OpenType shaping (raqm; Pillow wheels bundle it but it
     # loads libfribidi at runtime — installed by the workflows). Unshaped
     # conjuncts read as broken bot-text to natives, which is worse than no
-    # Telugu at all, so fall back rather than render them.
-    if hook_text and _TELUGU_RE.search(hook_text):
-        from PIL import features
+    # Telugu at all, so Telugu overlays are skipped entirely without it.
+    from PIL import features
 
-        if not features.check("raqm"):
-            print("  raqm unavailable — Telugu hook would render unshaped; using fallback", flush=True)
-            hook_text = ""
+    can_shape = features.check("raqm")
+    # Challenge/festival hooks carry emoji no overlay font covers — strip
+    # rather than render tofu boxes in the headline.
+    hook_text = _strip_unrenderable(recipe.get("hook") or "")
+    if hook_text and _TELUGU_RE.search(hook_text) and not can_shape:
+        print("  raqm unavailable — Telugu hook would render unshaped; using fallback", flush=True)
+        hook_text = ""
     hook_text = hook_text or f"Only {n_ing} ingredients!"
+    # Dish-name pill: Telugu script line above the Latin one. Script is the
+    # 1-second "this is for me" signal for the target audience (regional-
+    # script reels outperform English-only in India), and both lines are
+    # searchable text. Renders only with a verified spelling + shaping.
+    name_lines = [recipe["name"]]
+    from voiceover import telugu_dish_name
+
+    te_name = telugu_dish_name(recipe["name"])
+    if te_name and can_shape:
+        name_lines.insert(0, te_name)
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_dir = Path(tmp)
@@ -605,7 +711,7 @@ def assemble_reel(
         ov_head = tmp_dir / "ov_head.png"
         _overlay_png([hook_text], [], ov_head)
         ov_name = tmp_dir / "ov_name.png"
-        _overlay_png([], [recipe["name"]], ov_name)
+        _overlay_png([], name_lines, ov_name)
         ov_ing = tmp_dir / "ov_ing.png"
         _overlay_png(["What you need:"], ["Full recipe in caption ↓"], ov_ing)
         ov_follow = tmp_dir / "ov_follow.png"
@@ -676,10 +782,17 @@ def assemble_reel(
             cmd = [ff, "-y", "-i", str(clip)]
             # setsar=1 everywhere: scale+crop can tag a fractional SAR (e.g.
             # 480p sources), and concat hard-fails on any SAR mismatch
-            # between punched and un-punched segments
+            # between punched and un-punched segments. The mild eq lift
+            # (REEL_GRADE=0 disables) counteracts the model's muddy
+            # brown-on-brown tendency — measured up to 50% of pixels
+            # crushed below Y=40 on a phone-in-daylight viewing.
+            grade = (
+                "" if os.environ.get("REEL_GRADE") == "0"
+                else ",eq=brightness=0.03:contrast=1.03:saturation=1.12"
+            )
             base = (
                 f"[0:v]scale={REEL_W}:{REEL_H}:force_original_aspect_ratio=increase,"
-                f"crop={REEL_W}:{REEL_H},fps={FPS},setsar=1"
+                f"crop={REEL_W}:{REEL_H}{grade},fps={FPS},setsar=1"
             )
             if len(segs) > 1:
                 parts = [f"{base}[vbase]",
@@ -864,9 +977,13 @@ def make_ai_reel(
     ref_image = recipe.get("thumb") or None
     # Per-recipe story: the shot list comes from how the dish is actually
     # prepared. generate.py plans it once (with narration) and passes the
-    # beats in; only plan here when called standalone (e.g. tests).
+    # beats in; only plan here when called standalone (e.g. tests), i.e.
+    # story is None. An EMPTY list means the caller already tried and
+    # failed — re-planning here could succeed on retry and produce video
+    # beats the already-made voiceover (built against the template script)
+    # doesn't describe.
     if story is None:
-        story = plan_story(recipe, n_gens * BEATS_PER_GEN, STYLE_BLOCK)
+        story = plan_story(recipe, n_gens * BEATS_PER_GEN, style_for(recipe))
     if story:
         print(f"  story planned: {len(story)} shots", flush=True)
     # Keyframe chain (K0..Kn) for first/last-frame conditioning; images are
@@ -880,7 +997,7 @@ def make_ai_reel(
         try:
             beats = build_beats(recipe, n_gens, story=story)
             keyframes = generate_keyframes(
-                recipe, beats, BEATS_PER_GEN, n_gens, STYLE_BLOCK, ref_image, kie_key
+                recipe, beats, BEATS_PER_GEN, n_gens, style_for(recipe), ref_image, kie_key
             )
             print(f"  {len(keyframes)} boundary keyframes generated", flush=True)
         except Exception as exc:
@@ -894,7 +1011,49 @@ def make_ai_reel(
             clips = generate_clips_veo(prompts, ref_image, Path(tmp), keyframes)
         else:
             clips = generate_clips(prompts, ref_image, key, Path(tmp), keyframes)
+
+        # Vision QC (REEL_QC=0 disables): a vessel that changes identity, a
+        # flame floating on the table, or a morphing ingredient gets the
+        # account read as AI slop. Flagged clips are regenerated ONCE, at
+        # most two per reel (bounded respend); QC never blocks the post.
+        if (os.environ.get("REEL_QC") or "1") != "0" and os.environ.get("GEMINI_API_KEY"):
+            from qc import qc_clips
+
+            bad = qc_clips(_ffmpeg(), clips, prompts, recipe, _vessel_for(recipe))
+            for i in bad[:2]:
+                # Everything here is best-effort: the clips are already paid
+                # for, so no failure (credit probe included) may abort them
+                try:
+                    if key and get_credits(key) < GEN_SECONDS * CREDITS_PER_SECOND:
+                        print("  Kie credits too low to regenerate flagged clips", flush=True)
+                        break
+                    print(f"  regenerating flagged clip {i + 1}...", flush=True)
+                    clips[i] = _regenerate_clip(i, prompts, ref_image, key, Path(tmp), keyframes)
+                except Exception as exc:
+                    print(f"  regeneration skipped ({exc}); keeping the original clip", flush=True)
+
         assemble_reel(
             clips, recipe, handle, out_path, voiceover, music,
             chained=keyframes is not None,
         )
+
+
+def _regenerate_clip(
+    i: int,
+    prompts: list[str],
+    ref_image: str | None,
+    key: str | None,
+    out_dir: Path,
+    keyframes: list[str] | None,
+) -> Path:
+    """One fresh generation of clip i (same prompt, same boundary frames).
+
+    Reuses the normal generators on a one-prompt list — including their
+    audio-filter retry logic — in a subdir, because both name outputs by
+    list position and regenerating clip 2 must not overwrite clip 0."""
+    sub_dir = out_dir / f"retry{i}"
+    sub_dir.mkdir(exist_ok=True)
+    kf = keyframes[i:i + 2] if keyframes else None
+    if BACKEND == "veo":
+        return generate_clips_veo([prompts[i]], ref_image, sub_dir, kf)[0]
+    return generate_clips([prompts[i]], ref_image, key, sub_dir, kf)[0]

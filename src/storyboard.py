@@ -113,8 +113,9 @@ Rules — realism above all:
   appetizing — glossy, textured, steaming, ready to eat. Never a raw,
   mid-boil, or half-cooked state: the first frame decides the scroll, and
   wet mid-cook food loses it.
-- Shot 2 shows the key ingredients laid out in small brass bowls on the
-  counter (a text overlay points to the caption during this shot).
+- Shot 2 shows the key ingredients laid out in small bowls on the counter —
+  exactly ONE bowl per ingredient, no duplicates, each clearly the real
+  ingredient (a text overlay points to the caption during this shot).
 - Middle shots: the defining preparation moments IN ORDER, as one continuous
   process — each shot advancing the cooking from the previous, no jumps. Pick
   the most important transformations and show the dish visibly progressing,
@@ -126,6 +127,11 @@ Rules — realism above all:
 - The final shot recreates shot 1's framing with the finished {name},
   garnished and steaming, and must END MID-ACTION (steam still rising, a
   sprinkle mid-fall) so looping back to shot 1 reads as continuous motion.
+- Physical realism in every shot: tempering is clear shimmering oil with
+  mustard seeds crackling (never foam or froth), powders are sprinkled from
+  a small spoon (never crumbled from fingers), liquids pour in thin streams,
+  and the cooking vessel always sits on a stove — a home cook must see
+  nothing physically impossible.
 - Fixed setting, identical in every shot: {style_block}
 - No people's faces, no fast motion, no artificial speed changes.{angle}{hook_rules}{vo_rules}
 

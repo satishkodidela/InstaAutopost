@@ -60,6 +60,9 @@ jobs:
           ELEVEN_LABS_MODEL: ${{ vars.ELEVEN_LABS_MODEL }}
           REEL_CAPTIONS: ${{ vars.REEL_CAPTIONS }}
           REEL_MUSIC: ${{ vars.REEL_MUSIC }}
+          REEL_SET: ${{ vars.REEL_SET }}
+          REEL_QC: ${{ vars.REEL_QC }}
+          REEL_GRADE: ${{ vars.REEL_GRADE }}
         run: python -u src/generate.py
 
       - name: Clean up old media (keep repo lean)
