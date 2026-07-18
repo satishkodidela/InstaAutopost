@@ -1,0 +1,51 @@
+{
+  "name": "Allam Pachadi",
+  "category": "Chutney",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "100g fresh ginger, peeled",
+      "measure": ""
+    },
+    {
+      "name": "1 lemon-sized ball tamarind",
+      "measure": ""
+    },
+    {
+      "name": "1/2 cup jaggery, grated",
+      "measure": ""
+    },
+    {
+      "name": "6 dried red chillies",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp urad dal",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp mustard seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 sprig curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "4 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Fry the ginger pieces in a little oil until the raw smell goes.",
+    "Fry urad dal and red chillies until golden.",
+    "Grind ginger, dal, chillies, tamarind, jaggery and salt into a thick sweet-hot-sour paste.",
+    "Temper mustard seeds and curry leaves in oil, and mix into the pachadi.",
+    "Serve with pesarattu, idli or hot rice — it keeps for a week refrigerated."
+  ],
+  "tags": "veg,chutney"
+}

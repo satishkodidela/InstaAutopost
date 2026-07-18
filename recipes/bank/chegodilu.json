@@ -1,0 +1,47 @@
+{
+  "name": "Chegodilu",
+  "category": "Snack",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "2 cups rice flour",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp moong dal, soaked",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp sesame seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp cumin seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp red chilli powder",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp butter",
+      "measure": ""
+    },
+    {
+      "name": "oil for deep frying",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Boil a cup of water with salt and butter, then stir in the rice flour to make a stiff dough.",
+    "Knead in soaked moong dal, sesame, cumin and chilli powder while warm.",
+    "Roll small ropes of dough and join the ends into little rings.",
+    "Deep fry the rings in medium oil until they turn golden and stop sizzling.",
+    "Cool completely — they crisp as they cool — and store airtight."
+  ],
+  "tags": "veg,festival,snack"
+}

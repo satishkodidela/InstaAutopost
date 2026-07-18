@@ -1,0 +1,51 @@
+{
+  "name": "Chamadumpa Vepudu",
+  "category": "Curry",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "500g taro root (chamadumpa)",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp red chilli powder",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp coriander powder",
+      "measure": ""
+    },
+    {
+      "name": "1/2 tsp turmeric",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp mustard seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp urad dal",
+      "measure": ""
+    },
+    {
+      "name": "2 sprigs curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "5 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Boil the taro roots until just tender, cool, peel and slice into thick rounds.",
+    "Crackle mustard seeds and urad dal in hot oil with curry leaves.",
+    "Slide in the taro slices in a single layer and fry undisturbed until golden.",
+    "Turn and crisp the other side, then sprinkle turmeric, chilli powder, coriander powder and salt.",
+    "Fry until the edges crackle — crisp outside, soft inside — and serve hot."
+  ],
+  "tags": "veg,andhra"
+}

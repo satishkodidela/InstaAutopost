@@ -1,0 +1,43 @@
+{
+  "name": "Paramannam",
+  "category": "Dessert",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "1 cup rice",
+      "measure": ""
+    },
+    {
+      "name": "1 litre milk",
+      "measure": ""
+    },
+    {
+      "name": "1 cup jaggery, grated",
+      "measure": ""
+    },
+    {
+      "name": "10 cashews",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp raisins",
+      "measure": ""
+    },
+    {
+      "name": "1/2 tsp cardamom powder",
+      "measure": ""
+    },
+    {
+      "name": "3 tbsp ghee",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Cook the rice in milk on low heat, stirring, until completely soft and creamy.",
+    "Melt the jaggery with a spoon of water and strain the syrup.",
+    "Take the rice off the boil and stir in the jaggery syrup — off heat, so the milk never splits.",
+    "Fry cashews and raisins in ghee and fold in with cardamom.",
+    "Serve warm as naivedyam — the first sweet made for every Telugu festival."
+  ],
+  "tags": "veg,sweet,festival"
+}

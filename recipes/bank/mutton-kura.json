@@ -1,0 +1,63 @@
+{
+  "name": "Mutton Kura",
+  "category": "Curry",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "750g mutton, curry cut",
+      "measure": ""
+    },
+    {
+      "name": "2 onions, finely chopped",
+      "measure": ""
+    },
+    {
+      "name": "2 tomatoes, chopped",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp ginger garlic paste",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp red chilli powder",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp coriander powder",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp garam masala",
+      "measure": ""
+    },
+    {
+      "name": "1/2 tsp turmeric",
+      "measure": ""
+    },
+    {
+      "name": "1/2 cup curd",
+      "measure": ""
+    },
+    {
+      "name": "2 sprigs curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "4 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Marinate the mutton with curd, turmeric and half the ginger garlic paste for one hour.",
+    "Brown the onions well in oil, then add remaining ginger garlic paste and curry leaves.",
+    "Add tomatoes and the spice powders, and cook until the masala releases oil.",
+    "Add the mutton and sear on high heat, then pressure cook with a cup of water until fork-tender.",
+    "Simmer open until the gravy thickens and coats the meat; finish with garam masala."
+  ],
+  "tags": "non-veg,festival"
+}

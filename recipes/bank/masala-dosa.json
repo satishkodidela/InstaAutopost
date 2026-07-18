@@ -1,0 +1,59 @@
+{
+  "name": "Masala Dosa",
+  "category": "Breakfast",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "3 cups dosa batter",
+      "measure": ""
+    },
+    {
+      "name": "3 potatoes, boiled",
+      "measure": ""
+    },
+    {
+      "name": "1 onion, sliced",
+      "measure": ""
+    },
+    {
+      "name": "2 green chillies",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp mustard seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp chana dal",
+      "measure": ""
+    },
+    {
+      "name": "1/2 tsp turmeric",
+      "measure": ""
+    },
+    {
+      "name": "1 sprig curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "3 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp ghee",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Crackle mustard seeds and chana dal in oil, add curry leaves, green chillies and sliced onion.",
+    "Add turmeric, mashed boiled potatoes and salt; mix into a soft masala and set aside.",
+    "Spread a ladle of dosa batter thin on a hot tawa and drizzle ghee around the edges.",
+    "Cook until golden and crisp, place a scoop of potato masala in the centre.",
+    "Fold the dosa over the masala and serve hot with chutney and sambar."
+  ],
+  "tags": "veg,breakfast"
+}

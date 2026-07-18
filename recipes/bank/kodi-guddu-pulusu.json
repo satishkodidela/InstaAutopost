@@ -1,0 +1,63 @@
+{
+  "name": "Kodi Guddu Pulusu",
+  "category": "Curry",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "6 eggs, hard boiled",
+      "measure": ""
+    },
+    {
+      "name": "2 onions, sliced",
+      "measure": ""
+    },
+    {
+      "name": "2 tomatoes, chopped",
+      "measure": ""
+    },
+    {
+      "name": "1 lemon-sized ball tamarind",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp ginger garlic paste",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp red chilli powder",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp coriander powder",
+      "measure": ""
+    },
+    {
+      "name": "1/2 tsp turmeric",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp mustard seeds",
+      "measure": ""
+    },
+    {
+      "name": "2 sprigs curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "3 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Score the boiled eggs lightly and fry them in a little oil until golden blisters form; set aside.",
+    "Crackle mustard seeds, then saute onions, curry leaves and ginger garlic paste until golden.",
+    "Add tomatoes and the spice powders and cook to a soft masala.",
+    "Pour in tamarind water and salt, and simmer until the pulusu thickens and turns glossy.",
+    "Slide in the fried eggs, simmer five minutes so they drink the gravy, and serve with rice."
+  ],
+  "tags": "non-veg,quick"
+}

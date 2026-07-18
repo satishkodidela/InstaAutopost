@@ -1,0 +1,51 @@
+{
+  "name": "Chepala Vepudu",
+  "category": "Curry",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "500g fish steaks (seer or tilapia)",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp red chilli powder",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp ginger garlic paste",
+      "measure": ""
+    },
+    {
+      "name": "1/2 tsp turmeric",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp rice flour",
+      "measure": ""
+    },
+    {
+      "name": "1 lemon",
+      "measure": ""
+    },
+    {
+      "name": "2 sprigs curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "6 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Pat the fish dry and slash the flesh lightly so the masala goes deep.",
+    "Rub with chilli powder, ginger garlic paste, turmeric, salt, lemon juice and rice flour; rest 30 minutes.",
+    "Heat oil in a flat pan and lay the fish in a single layer.",
+    "Shallow fry undisturbed until the underside is crisp and red, then flip once.",
+    "Crisp the other side with curry leaves in the oil and serve with onion and lemon."
+  ],
+  "tags": "non-veg,coastal"
+}

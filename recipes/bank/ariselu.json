@@ -1,0 +1,35 @@
+{
+  "name": "Ariselu",
+  "category": "Dessert",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "2 cups rice, soaked overnight",
+      "measure": ""
+    },
+    {
+      "name": "1.5 cups jaggery, grated",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp sesame seeds",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp ghee",
+      "measure": ""
+    },
+    {
+      "name": "oil for frying",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Drain the soaked rice, shade-dry briefly, and pound or grind into a fine moist flour.",
+    "Melt jaggery with a little water and boil to a soft-ball syrup.",
+    "Stir the rice flour into the syrup off the heat to form a soft, glossy dough.",
+    "Pat small discs on a greased leaf or sheet, pressing sesame seeds into each.",
+    "Fry gently in ghee and oil, pressing with ladles, until deep brown; drain and cool."
+  ],
+  "tags": "veg,sweet,festival"
+}

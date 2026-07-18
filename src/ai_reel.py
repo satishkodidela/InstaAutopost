@@ -152,6 +152,8 @@ def _vessel_for(recipe: dict) -> str:
     to actual cooks, and the vessel changing identity mid-reel was the most
     cited AI tell."""
     text = f"{recipe.get('name', '')} {recipe.get('category', '')}".lower()
+    if "biryani" in text:
+        return "a heavy-bottomed biryani pot (handi) with a lid"
     if any(w in text for w in ("payasam", "kheer", "halwa", "bobbatlu", "dessert", "sweet")):
         return "a heavy-bottomed steel kadai"
     if any(w in text for w in ("pulusu", "sambar", "rasam", "charu", "pappu", "curry", "gravy", "soup")):

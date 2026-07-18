@@ -1,0 +1,51 @@
+{
+  "name": "Bangaladumpa Vepudu",
+  "category": "Curry",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "4 potatoes, cubed small",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp red chilli powder",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp coriander powder",
+      "measure": ""
+    },
+    {
+      "name": "1/2 tsp turmeric",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp mustard seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp chana dal",
+      "measure": ""
+    },
+    {
+      "name": "2 sprigs curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "4 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Crackle mustard seeds and chana dal in hot oil, then add curry leaves.",
+    "Add the potato cubes and turmeric, and toss to coat.",
+    "Fry uncovered on medium heat, turning occasionally, until the edges crisp and brown.",
+    "Sprinkle chilli powder, coriander powder and salt.",
+    "Toss for two more minutes until every cube is crusty and serve with rice and pappu."
+  ],
+  "tags": "veg,quick"
+}

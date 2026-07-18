@@ -1,0 +1,47 @@
+{
+  "name": "Uthappam",
+  "category": "Breakfast",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "3 cups dosa batter (slightly thick)",
+      "measure": ""
+    },
+    {
+      "name": "1 onion, finely chopped",
+      "measure": ""
+    },
+    {
+      "name": "1 tomato, finely chopped",
+      "measure": ""
+    },
+    {
+      "name": "2 green chillies, chopped",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp coriander leaves",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp grated carrot (optional)",
+      "measure": ""
+    },
+    {
+      "name": "3 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Mix chopped onion, tomato, green chillies and coriander in a bowl.",
+    "Pour a thick ladle of batter on a hot tawa and spread gently into a small, thick circle.",
+    "Sprinkle the vegetable topping generously over the wet batter and press lightly.",
+    "Drizzle oil around, cover and cook until the base is golden and the top is set.",
+    "Flip for a minute to sear the topping, then serve hot with chutney."
+  ],
+  "tags": "veg,breakfast,quick"
+}

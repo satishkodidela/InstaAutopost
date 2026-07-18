@@ -1,0 +1,51 @@
+{
+  "name": "Masala Vada",
+  "category": "Snack",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "2 cups chana dal",
+      "measure": ""
+    },
+    {
+      "name": "2 onions, finely chopped",
+      "measure": ""
+    },
+    {
+      "name": "4 green chillies, chopped",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp ginger, chopped",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp fennel seeds",
+      "measure": ""
+    },
+    {
+      "name": "2 sprigs curry leaves, chopped",
+      "measure": ""
+    },
+    {
+      "name": "3 tbsp coriander leaves",
+      "measure": ""
+    },
+    {
+      "name": "oil for deep frying",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Soak chana dal for two hours and grind coarsely without water, keeping some dal whole.",
+    "Mix in onion, green chillies, ginger, fennel, curry leaves, coriander and salt.",
+    "Shape handfuls into flat patties on your palm.",
+    "Deep fry in medium-hot oil until deep golden and crunchy.",
+    "Drain and serve hot with tea — crisp edges, soft centre."
+  ],
+  "tags": "veg,street-food"
+}

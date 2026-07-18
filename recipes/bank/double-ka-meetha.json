@@ -1,0 +1,51 @@
+{
+  "name": "Double Ka Meetha",
+  "category": "Dessert",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "8 slices bread",
+      "measure": ""
+    },
+    {
+      "name": "2 cups milk",
+      "measure": ""
+    },
+    {
+      "name": "1/2 cup sugar",
+      "measure": ""
+    },
+    {
+      "name": "1/4 cup condensed milk or khova",
+      "measure": ""
+    },
+    {
+      "name": "10 cashews and almonds, sliced",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp raisins",
+      "measure": ""
+    },
+    {
+      "name": "1 pinch saffron",
+      "measure": ""
+    },
+    {
+      "name": "1/2 tsp cardamom powder",
+      "measure": ""
+    },
+    {
+      "name": "4 tbsp ghee",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Trim the bread crusts, cut slices into triangles, and fry them in ghee until golden.",
+    "Boil milk with sugar, saffron and cardamom until slightly thickened, then stir in the condensed milk.",
+    "Arrange the fried bread in a dish and pour the hot sweetened milk over it.",
+    "Scatter ghee-fried nuts and raisins on top.",
+    "Rest until the bread soaks through, and serve warm — Hyderabad's wedding classic."
+  ],
+  "tags": "veg,sweet,hyderabadi,festival"
+}

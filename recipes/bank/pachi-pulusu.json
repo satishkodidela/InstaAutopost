@@ -1,0 +1,63 @@
+{
+  "name": "Pachi Pulusu",
+  "category": "Soup",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "1 lemon-sized ball tamarind",
+      "measure": ""
+    },
+    {
+      "name": "1 onion, finely chopped",
+      "measure": ""
+    },
+    {
+      "name": "3 green chillies",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp red chilli powder",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp jaggery",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp coriander leaves",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp mustard seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp cumin seeds",
+      "measure": ""
+    },
+    {
+      "name": "2 dried red chillies",
+      "measure": ""
+    },
+    {
+      "name": "1 sprig curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Soak tamarind in warm water and squeeze out a thin extract into a wide bowl.",
+    "Roast the green chillies directly on the flame, crush them, and add to the tamarind water.",
+    "Add chopped onion, jaggery, chilli powder, salt and coriander — this pulusu is never cooked.",
+    "Crackle mustard, cumin, red chillies and curry leaves in hot oil.",
+    "Pour the hot tempering into the raw pulusu — it sizzles loudly — and serve with hot rice."
+  ],
+  "tags": "veg,telangana,summer,quick"
+}

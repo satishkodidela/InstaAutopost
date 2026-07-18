@@ -1,0 +1,47 @@
+{
+  "name": "Jantikalu",
+  "category": "Snack",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "3 cups rice flour",
+      "measure": ""
+    },
+    {
+      "name": "1/2 cup besan (gram flour)",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp sesame seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp carom seeds (vaamu)",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp red chilli powder",
+      "measure": ""
+    },
+    {
+      "name": "3 tbsp hot oil, for the dough",
+      "measure": ""
+    },
+    {
+      "name": "oil for deep frying",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Mix rice flour, besan, sesame, carom, chilli powder and salt; rub in the hot oil.",
+    "Knead with water into a smooth, pliable dough.",
+    "Fill the jantikalu press and squeeze spirals directly into hot oil.",
+    "Fry until the hissing stops and the spirals turn light gold.",
+    "Drain, cool and break into crunchy pieces — the everyday Telugu tea-time murukulu."
+  ],
+  "tags": "veg,festival,snack"
+}

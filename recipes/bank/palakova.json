@@ -1,0 +1,31 @@
+{
+  "name": "Palakova",
+  "category": "Dessert",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "2 litres full-fat milk",
+      "measure": ""
+    },
+    {
+      "name": "3/4 cup sugar",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp ghee",
+      "measure": ""
+    },
+    {
+      "name": "1/2 tsp cardamom powder",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Boil the milk in a wide, heavy kadai on medium heat.",
+    "Stir continuously, scraping the sides and bottom, as the milk reduces and thickens.",
+    "When it reaches a thick, grainy consistency, add the sugar — it loosens again.",
+    "Keep stirring until the kova leaves the sides of the kadai in one mass.",
+    "Finish with ghee and cardamom, cool slightly and serve — the famous milk sweet of Andhra."
+  ],
+  "tags": "veg,sweet"
+}

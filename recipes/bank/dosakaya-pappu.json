@@ -1,0 +1,67 @@
+{
+  "name": "Dosakaya Pappu",
+  "category": "Dal",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "1 cup toor dal",
+      "measure": ""
+    },
+    {
+      "name": "2 cups dosakaya (yellow cucumber), cubed",
+      "measure": ""
+    },
+    {
+      "name": "2 tomatoes, chopped",
+      "measure": ""
+    },
+    {
+      "name": "4 green chillies",
+      "measure": ""
+    },
+    {
+      "name": "1 small ball tamarind",
+      "measure": ""
+    },
+    {
+      "name": "1/2 tsp turmeric",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp mustard seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp cumin seeds",
+      "measure": ""
+    },
+    {
+      "name": "3 garlic cloves, crushed",
+      "measure": ""
+    },
+    {
+      "name": "2 dried red chillies",
+      "measure": ""
+    },
+    {
+      "name": "1 sprig curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "3 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Pressure cook toor dal with dosakaya cubes, tomato, green chillies and turmeric until soft.",
+    "Mash lightly, add tamarind water and salt, and simmer for five minutes.",
+    "Heat oil and crackle mustard, cumin, garlic, red chillies and curry leaves.",
+    "Pour the tempering over the simmering pappu and mix once.",
+    "Serve hot with rice and a spoon of ghee."
+  ],
+  "tags": "veg,andhra"
+}

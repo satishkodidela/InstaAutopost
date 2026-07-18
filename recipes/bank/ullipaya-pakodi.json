@@ -1,0 +1,51 @@
+{
+  "name": "Ullipaya Pakodi",
+  "category": "Snack",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "3 onions, thinly sliced",
+      "measure": ""
+    },
+    {
+      "name": "1.5 cups besan (gram flour)",
+      "measure": ""
+    },
+    {
+      "name": "3 tbsp rice flour",
+      "measure": ""
+    },
+    {
+      "name": "4 green chillies, chopped",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp red chilli powder",
+      "measure": ""
+    },
+    {
+      "name": "1 sprig curry leaves, chopped",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp hot oil, for the batter",
+      "measure": ""
+    },
+    {
+      "name": "oil for deep frying",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Squeeze the sliced onions with salt until they wilt and release moisture.",
+    "Add besan, rice flour, chillies, chilli powder, curry leaves and hot oil — bind using only the onion juices.",
+    "Sprinkle water just if needed; the mix should stay ragged, not a batter.",
+    "Drop rough clusters into hot oil and fry until deep golden and crisp.",
+    "Drain and serve immediately with tea — crunchiest while hot."
+  ],
+  "tags": "veg,street-food,quick"
+}

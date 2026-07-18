@@ -1,0 +1,59 @@
+{
+  "name": "Mirapakaya Bajji",
+  "category": "Snack",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "8 large bajji chillies",
+      "measure": ""
+    },
+    {
+      "name": "2 cups besan (gram flour)",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp rice flour",
+      "measure": ""
+    },
+    {
+      "name": "1/2 tsp carom seeds (vaamu)",
+      "measure": ""
+    },
+    {
+      "name": "1/2 tsp red chilli powder",
+      "measure": ""
+    },
+    {
+      "name": "1 pinch baking soda",
+      "measure": ""
+    },
+    {
+      "name": "1 onion, finely chopped",
+      "measure": ""
+    },
+    {
+      "name": "1 lemon",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp coriander leaves",
+      "measure": ""
+    },
+    {
+      "name": "oil for deep frying",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Slit the bajji chillies, remove the seeds, and rub a little salt inside.",
+    "Whisk besan, rice flour, carom seeds, chilli powder, soda and salt with water into a thick coating batter.",
+    "Dip each chilli in the batter and deep fry in hot oil until golden and puffed.",
+    "Drain, split open, and stuff with chopped onion, coriander and a squeeze of lemon.",
+    "Serve hot — the classic rainy-day roadside bajji."
+  ],
+  "tags": "veg,street-food"
+}
