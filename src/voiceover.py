@@ -435,25 +435,51 @@ def _single(path: Path, lang: str, engine: str) -> dict:
 
 
 def _blob_voiceover(recipe: dict, handle: str, out_dir: Path, target_seconds: float | None) -> dict | None:
-    """Legacy fallback: the mechanical English script, Telugu via Sarvam-translate
-    or English via edge-tts. One un-timed segment; no karaoke captions."""
+    """Legacy fallback: the mechanical English script, Telugu via Sarvam-translate.
+    One un-timed segment; no karaoke captions.
+
+    The VOICE stays the brand voice even here: the account's ElevenLabs
+    voice (Abhi) speaks the translated blob before Sarvam's stock speaker is
+    ever tried — a 2026-07-18 storyboard failure shipped a reel in a
+    different (female) voice mid-stream, the most audible break possible
+    for a voice-first account."""
     script = build_script(recipe, handle, target_seconds=target_seconds or 22.0)
     sarvam_key = os.environ.get("SARVAM_API_KEY")
 
     if sarvam_key:
         try:
             telugu = translate_to_telugu(script, sarvam_key)
-            path = out_dir / "voiceover.wav"
-            tts_sarvam_telugu(telugu, sarvam_key, path)
-            if target_seconds:
-                dur = audio_duration(path)
-                if dur > target_seconds:
-                    pace = round(min(1.5, dur / target_seconds + 0.05), 2)
-                    print(f"  Voiceover {dur:.1f}s > {target_seconds:.0f}s target; retrying at pace {pace}")
-                    tts_sarvam_telugu(telugu, sarvam_key, path, pace=pace)
-            return _single(path, "te", "sarvam")
         except Exception as exc:
-            print(f"Sarvam voiceover failed, falling back to edge-tts: {exc}", file=sys.stderr)
+            print(f"Sarvam translate failed, falling back to edge-tts: {exc}", file=sys.stderr)
+            telugu = None
+        if telugu and ELEVEN_KEY and ELEVEN_VOICE:
+            try:
+                path = out_dir / "voiceover.mp3"
+                words = tts_elevenlabs(telugu, path)
+                dur = audio_duration(path)
+                if target_seconds:
+                    path, dur, words = _fit_to_shot(path, dur, target_seconds, words)
+                seg = _single(path, "te", "elevenlabs")
+                seg["segments"][0]["words"] = [
+                    {"text": w["text"], "start": 0.4 + w["start"], "end": 0.4 + w["end"]}
+                    for w in words
+                ]
+                return seg
+            except Exception as exc:
+                print(f"ElevenLabs blob failed, trying Sarvam: {exc}", file=sys.stderr)
+        if telugu:
+            try:
+                path = out_dir / "voiceover.wav"
+                tts_sarvam_telugu(telugu, sarvam_key, path)
+                if target_seconds:
+                    dur = audio_duration(path)
+                    if dur > target_seconds:
+                        pace = round(min(1.5, dur / target_seconds + 0.05), 2)
+                        print(f"  Voiceover {dur:.1f}s > {target_seconds:.0f}s target; retrying at pace {pace}")
+                        tts_sarvam_telugu(telugu, sarvam_key, path, pace=pace)
+                return _single(path, "te", "sarvam")
+            except Exception as exc:
+                print(f"Sarvam voiceover failed, falling back to edge-tts: {exc}", file=sys.stderr)
 
     try:
         path = out_dir / "voiceover.mp3"
