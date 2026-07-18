@@ -19,26 +19,50 @@ on:
 permissions:
   contents: write
 
+# One posting run at a time across ALL posting workflows: a manual dispatch
+# racing the (often hours-late) cron generated the same day twice — the
+# loser burned a full generation and failed at push (run 29557193204).
+concurrency:
+  group: instagram-post
+  cancel-in-progress: false
+
 jobs:
   post:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      # A queued duplicate (see concurrency above) checks out a main that
+      # already contains today's pushed post — skip instead of regenerating
+      # the same day and dying on the push conflict (run 29557193204 burned
+      # a full generation this way).
+      - name: Skip if today is already posted
+        id: dedupe
+        run: |
+          TODAY=$(TZ=Asia/Kolkata date +%F)
+          if [ -f "posts/$TODAY.txt" ]; then
+            echo "posts/$TODAY.txt already on main — another run posted today; skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/setup-python@v5
+        if: steps.dedupe.outputs.skip != 'true'
         with:
           python-version: "3.12"
 
       - name: Install dependencies
+        if: steps.dedupe.outputs.skip != 'true'
         run: pip install -r requirements.txt
 
       # libfribidi lets Pillow's bundled raqm shape Telugu overlay text
       # (without it, conjuncts render broken and the hook falls back to
       # English — see ai_reel.assemble_reel)
       - name: Install text-shaping library
+        if: steps.dedupe.outputs.skip != 'true'
         run: sudo apt-get update -qq && sudo apt-get install -y -qq libfribidi0
 
       - name: Generate recipe cards and caption
+        if: steps.dedupe.outputs.skip != 'true'
         env:
           KIE_API_KEY: ${{ secrets.KIE_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -66,9 +90,11 @@ jobs:
         run: python -u src/generate.py
 
       - name: Clean up old media (keep repo lean)
+        if: steps.dedupe.outputs.skip != 'true'
         run: python src/cleanup.py
 
       - name: Commit and push the image (Instagram needs a public URL)
+        if: steps.dedupe.outputs.skip != 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -86,6 +112,7 @@ jobs:
           echo "push still failing after retries"; exit 1
 
       - name: Publish to Instagram
+        if: steps.dedupe.outputs.skip != 'true'
         env:
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
