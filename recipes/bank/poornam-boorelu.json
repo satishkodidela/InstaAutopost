@@ -1,0 +1,43 @@
+{
+  "name": "Poornam Boorelu",
+  "category": "Dessert",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "1 cup chana dal",
+      "measure": ""
+    },
+    {
+      "name": "1 cup jaggery, grated",
+      "measure": ""
+    },
+    {
+      "name": "1/2 tsp cardamom powder",
+      "measure": ""
+    },
+    {
+      "name": "1 cup urad dal",
+      "measure": ""
+    },
+    {
+      "name": "1 cup rice",
+      "measure": ""
+    },
+    {
+      "name": "oil for deep frying",
+      "measure": ""
+    },
+    {
+      "name": "1 pinch salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Soak rice and urad dal for four hours and grind to a thick dosa-like batter with a pinch of salt.",
+    "Pressure cook chana dal until just soft, drain fully, and mash with jaggery over low heat into a thick poornam.",
+    "Add cardamom and roll the poornam into small balls once cool.",
+    "Dip each ball into the batter to coat completely.",
+    "Deep fry until golden brown all over and serve warm — crisp shell, molten sweet dal inside."
+  ],
+  "tags": "veg,sweet,festival"
+}

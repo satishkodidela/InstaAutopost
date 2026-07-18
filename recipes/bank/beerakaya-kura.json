@@ -1,0 +1,59 @@
+{
+  "name": "Beerakaya Kura",
+  "category": "Curry",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "500g ridge gourd, peeled and cubed",
+      "measure": ""
+    },
+    {
+      "name": "1 onion, chopped",
+      "measure": ""
+    },
+    {
+      "name": "1 tomato, chopped",
+      "measure": ""
+    },
+    {
+      "name": "3 green chillies, slit",
+      "measure": ""
+    },
+    {
+      "name": "1/2 cup milk or 2 tbsp grated coconut",
+      "measure": ""
+    },
+    {
+      "name": "1/2 tsp turmeric",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp mustard seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp cumin seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 sprig curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "3 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Crackle mustard and cumin in oil, then saute onion, green chillies and curry leaves.",
+    "Add tomato and turmeric and cook until soft.",
+    "Add the ridge gourd cubes and salt, cover and cook — the gourd releases its own sweet water.",
+    "When tender, stir in milk or coconut and simmer two minutes for a silky gravy.",
+    "Serve with rice or hot chapatis."
+  ],
+  "tags": "veg"
+}

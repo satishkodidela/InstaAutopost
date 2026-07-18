@@ -7,7 +7,10 @@ import requests
 RANDOM_URL = "https://www.themealdb.com/api/json/v1/1/random.php"
 
 # Categories to skip, e.g. ["Beef", "Pork"] for a veg-friendly account.
-EXCLUDED_CATEGORIES: list[str] = []
+# Never serve these to a Telugu audience: beef is offensive to a large part
+# of it, pork close behind. (2026-07-18: an empty bank let the fallback post
+# a US beef meatloaf reel.)
+EXCLUDED_CATEGORIES: list[str] = ["Beef", "Pork"]
 
 MAX_STEP_CHARS = 260
 

@@ -1,0 +1,55 @@
+{
+  "name": "Sarva Pindi",
+  "category": "Breakfast",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "2 cups rice flour",
+      "measure": ""
+    },
+    {
+      "name": "1/2 cup chana dal (soaked 2 hours)",
+      "measure": ""
+    },
+    {
+      "name": "1 onion, finely chopped",
+      "measure": ""
+    },
+    {
+      "name": "4 green chillies, chopped",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp sesame seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 sprig curry leaves, torn",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp ginger garlic paste",
+      "measure": ""
+    },
+    {
+      "name": "1/4 cup peanuts (optional)",
+      "measure": ""
+    },
+    {
+      "name": "4 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Mix rice flour with soaked chana dal, onion, green chillies, sesame seeds, curry leaves, ginger garlic paste and salt.",
+    "Add water little by little and knead into a soft, spreadable dough.",
+    "Spread the dough by hand into a thick disc directly in a cold, oiled kadai and make holes with a finger.",
+    "Drizzle oil into the holes, cover and cook on medium heat until the bottom turns golden and crisp.",
+    "Flip carefully, cook the other side for a few minutes and serve hot."
+  ],
+  "tags": "veg,telangana,breakfast"
+}

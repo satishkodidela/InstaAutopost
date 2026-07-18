@@ -1,0 +1,51 @@
+{
+  "name": "Pongali",
+  "category": "Breakfast",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "1 cup rice",
+      "measure": ""
+    },
+    {
+      "name": "1/2 cup moong dal",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp black pepper, coarsely crushed",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp cumin seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp grated ginger",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp cashews",
+      "measure": ""
+    },
+    {
+      "name": "1 sprig curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "4 tbsp ghee",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Dry roast moong dal until aromatic, then wash it with the rice.",
+    "Pressure cook rice and dal together with extra water until completely soft and mushy.",
+    "Heat ghee and fry cashews, crushed pepper, cumin, ginger and curry leaves.",
+    "Pour the sizzling tempering over the cooked rice-dal mash and add salt.",
+    "Mix well, mash once more with the ladle, and serve hot with coconut chutney."
+  ],
+  "tags": "veg,breakfast,festival"
+}

@@ -1,0 +1,64 @@
+{
+  "name": "Hyderabadi Chicken Biryani",
+  "category": "Rice",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "500g chicken",
+      "measure": ""
+    },
+    {
+      "name": "2 cups basmati rice",
+      "measure": ""
+    },
+    {
+      "name": "1 cup curd",
+      "measure": ""
+    },
+    {
+      "name": "2 onions, thinly sliced",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp ginger garlic paste",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp biryani masala",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp red chilli powder",
+      "measure": ""
+    },
+    {
+      "name": "1/2 cup mint and coriander leaves",
+      "measure": ""
+    },
+    {
+      "name": "4 green chillies, slit",
+      "measure": ""
+    },
+    {
+      "name": "1 pinch saffron soaked in milk",
+      "measure": ""
+    },
+    {
+      "name": "4 tbsp ghee",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Marinate chicken with curd, ginger garlic paste, biryani masala, chilli powder, salt and half the mint for 1 hour.",
+    "Deep fry the sliced onions until deep golden and crisp.",
+    "Boil soaked basmati rice with whole spices and salt until 70 percent cooked, then drain.",
+    "Layer the marinated chicken, half-cooked rice, fried onions, mint and saffron milk in a heavy pot.",
+    "Seal and cook on dum: high heat for 5 minutes, then lowest flame for 25 minutes.",
+    "Rest 10 minutes, open, fluff gently and serve with raita and mirchi ka salan."
+  ],
+  "tags": "non-veg,hyderabadi,festival"
+}

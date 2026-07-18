@@ -1,0 +1,59 @@
+{
+  "name": "Bagara Annam",
+  "category": "Rice",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "2 cups basmati rice",
+      "measure": ""
+    },
+    {
+      "name": "1 onion, sliced",
+      "measure": ""
+    },
+    {
+      "name": "3 green chillies, slit",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp ginger garlic paste",
+      "measure": ""
+    },
+    {
+      "name": "4 cloves",
+      "measure": ""
+    },
+    {
+      "name": "2 cardamom",
+      "measure": ""
+    },
+    {
+      "name": "1 stick cinnamon",
+      "measure": ""
+    },
+    {
+      "name": "1 bay leaf",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp mint leaves",
+      "measure": ""
+    },
+    {
+      "name": "3 tbsp ghee",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Heat ghee and fry cloves, cardamom, cinnamon and bay leaf until fragrant.",
+    "Add sliced onion, green chillies and ginger garlic paste; saute until golden.",
+    "Add soaked and drained basmati rice and gently fry for two minutes.",
+    "Pour hot water, add mint and salt, and cook covered on low heat until done.",
+    "Fluff with a fork and serve with any Hyderabadi curry or dalcha."
+  ],
+  "tags": "veg,hyderabadi"
+}

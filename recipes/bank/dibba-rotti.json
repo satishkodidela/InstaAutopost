@@ -1,0 +1,43 @@
+{
+  "name": "Dibba Rotti",
+  "category": "Breakfast",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "2 cups idli rava",
+      "measure": ""
+    },
+    {
+      "name": "1 cup urad dal",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp cumin seeds",
+      "measure": ""
+    },
+    {
+      "name": "2 green chillies, chopped",
+      "measure": ""
+    },
+    {
+      "name": "1 sprig curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "4 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Soak urad dal for 4 hours and grind to a thick, fluffy batter.",
+    "Mix in washed idli rava, cumin, green chillies, curry leaves and salt; rest 15 minutes.",
+    "Heat oil in a deep, heavy kadai and pour in the thick batter.",
+    "Cover and cook on the lowest flame until the bottom forms a deep golden, thick crust.",
+    "Flip once, cook briefly, and serve wedges hot with avakaya or ginger chutney."
+  ],
+  "tags": "veg,andhra,breakfast"
+}

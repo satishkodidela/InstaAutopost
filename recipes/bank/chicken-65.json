@@ -1,0 +1,63 @@
+{
+  "name": "Chicken 65",
+  "category": "Snack",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "500g boneless chicken, bite-sized",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp ginger garlic paste",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp red chilli powder",
+      "measure": ""
+    },
+    {
+      "name": "1/2 tsp turmeric",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp corn flour",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp rice flour",
+      "measure": ""
+    },
+    {
+      "name": "1 egg",
+      "measure": ""
+    },
+    {
+      "name": "1/2 cup curd",
+      "measure": ""
+    },
+    {
+      "name": "6 green chillies, slit",
+      "measure": ""
+    },
+    {
+      "name": "2 sprigs curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "oil for deep frying",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Marinate chicken with ginger garlic paste, chilli powder, turmeric, salt, egg and the flours for 30 minutes.",
+    "Deep fry in hot oil in small batches until deep red and crisp; drain.",
+    "Whisk curd with a pinch of chilli powder and salt.",
+    "In a hot pan with a spoon of oil, crackle curry leaves and green chillies, add the curd and let it sizzle dry.",
+    "Toss the fried chicken in this coating until glossy and serve hot with onion rings."
+  ],
+  "tags": "non-veg,starter"
+}

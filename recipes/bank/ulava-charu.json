@@ -1,0 +1,63 @@
+{
+  "name": "Ulava Charu",
+  "category": "Soup",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "1 cup horse gram (ulavalu)",
+      "measure": ""
+    },
+    {
+      "name": "1 onion, chopped",
+      "measure": ""
+    },
+    {
+      "name": "2 tomatoes, chopped",
+      "measure": ""
+    },
+    {
+      "name": "1 lemon-sized ball tamarind",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp red chilli powder",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp coriander powder",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp mustard seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp cumin seeds",
+      "measure": ""
+    },
+    {
+      "name": "2 sprigs curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "3 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp fresh cream (optional)",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Soak horse gram overnight and pressure cook until very soft.",
+    "Strain and reserve the dark cooking stock; grind a little of the cooked gram and add back to thicken.",
+    "Simmer the stock with tamarind water, chilli powder, coriander powder and salt until it thickens to a glossy dark charu.",
+    "Crackle mustard, cumin and curry leaves in oil with onion and tomato, and add to the simmering charu.",
+    "Reduce until spoon-coating thick and serve with hot rice and a swirl of cream."
+  ],
+  "tags": "veg,andhra,winter"
+}

@@ -1,0 +1,55 @@
+{
+  "name": "Hyderabadi Veg Biryani",
+  "category": "Rice",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "2 cups basmati rice",
+      "measure": ""
+    },
+    {
+      "name": "300g mixed vegetables (carrot, beans, potato, cauliflower)",
+      "measure": ""
+    },
+    {
+      "name": "1 cup curd",
+      "measure": ""
+    },
+    {
+      "name": "2 onions, thinly sliced",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp ginger garlic paste",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp biryani masala",
+      "measure": ""
+    },
+    {
+      "name": "1/2 cup mint and coriander leaves",
+      "measure": ""
+    },
+    {
+      "name": "1 pinch saffron soaked in milk",
+      "measure": ""
+    },
+    {
+      "name": "4 tbsp ghee",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Marinate the vegetables in curd, ginger garlic paste, biryani masala and salt for 30 minutes.",
+    "Fry the sliced onions until golden and crisp; boil soaked rice until 70 percent done.",
+    "Layer marinated vegetables, rice, fried onions, mint and saffron milk in a heavy pot.",
+    "Seal the lid and cook on dum on the lowest flame for 25 minutes.",
+    "Fluff gently and serve hot with raita."
+  ],
+  "tags": "veg,hyderabadi,festival"
+}

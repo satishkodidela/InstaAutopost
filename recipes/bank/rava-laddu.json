@@ -1,0 +1,47 @@
+{
+  "name": "Rava Laddu",
+  "category": "Dessert",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "2 cups fine semolina (rava)",
+      "measure": ""
+    },
+    {
+      "name": "1 cup sugar, powdered",
+      "measure": ""
+    },
+    {
+      "name": "1/2 cup grated dry coconut",
+      "measure": ""
+    },
+    {
+      "name": "10 cashews",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp raisins",
+      "measure": ""
+    },
+    {
+      "name": "1/2 tsp cardamom powder",
+      "measure": ""
+    },
+    {
+      "name": "1/2 cup ghee",
+      "measure": ""
+    },
+    {
+      "name": "1/4 cup warm milk",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Roast the rava in two spoons of ghee on low heat until aromatic, never browning it.",
+    "Fry cashews and raisins in ghee until golden.",
+    "Mix rava, powdered sugar, coconut, cardamom and the fried nuts.",
+    "Add the remaining warm ghee and sprinkle warm milk little by little.",
+    "Press and roll into tight laddus while the mixture is still warm."
+  ],
+  "tags": "veg,sweet,festival,quick"
+}

@@ -1,0 +1,63 @@
+{
+  "name": "Aloo Kurma",
+  "category": "Curry",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "4 potatoes, cubed",
+      "measure": ""
+    },
+    {
+      "name": "1 onion, chopped",
+      "measure": ""
+    },
+    {
+      "name": "2 tomatoes, pureed",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp ginger garlic paste",
+      "measure": ""
+    },
+    {
+      "name": "1/2 cup grated coconut",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp poppy seeds (gasagasalu)",
+      "measure": ""
+    },
+    {
+      "name": "6 cashews",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp garam masala",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp red chilli powder",
+      "measure": ""
+    },
+    {
+      "name": "1/2 tsp turmeric",
+      "measure": ""
+    },
+    {
+      "name": "3 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Grind coconut, poppy seeds and cashews to a smooth paste.",
+    "Saute onion and ginger garlic paste in oil until golden, then add tomato puree and spice powders.",
+    "Add the potato cubes and salt, and coat in the masala.",
+    "Pour in the ground paste with a cup of water and simmer until the potatoes are soft and the kurma is creamy.",
+    "Serve with poori, chapati or bagara annam."
+  ],
+  "tags": "veg,festival"
+}

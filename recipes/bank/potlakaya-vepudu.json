@@ -1,0 +1,55 @@
+{
+  "name": "Potlakaya Vepudu",
+  "category": "Curry",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "500g snake gourd, sliced thin",
+      "measure": ""
+    },
+    {
+      "name": "1 onion, chopped",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp red chilli powder",
+      "measure": ""
+    },
+    {
+      "name": "1/2 tsp turmeric",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp grated coconut",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp mustard seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp chana dal",
+      "measure": ""
+    },
+    {
+      "name": "1 sprig curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "3 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Crackle mustard seeds and chana dal in oil, then add curry leaves and onion.",
+    "Add the snake gourd slices and turmeric, and saute on medium heat.",
+    "Cook uncovered, stirring now and then, until the gourd softens and browns lightly.",
+    "Season with chilli powder and salt, and finish with grated coconut.",
+    "Toss once and serve with rice and rasam."
+  ],
+  "tags": "veg,quick"
+}

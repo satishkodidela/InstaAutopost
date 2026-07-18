@@ -1,0 +1,59 @@
+{
+  "name": "Gummadikaya Pulusu",
+  "category": "Curry",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "500g yellow pumpkin, cubed",
+      "measure": ""
+    },
+    {
+      "name": "1 onion, sliced",
+      "measure": ""
+    },
+    {
+      "name": "1 lemon-sized ball tamarind",
+      "measure": ""
+    },
+    {
+      "name": "2 tbsp jaggery",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp red chilli powder",
+      "measure": ""
+    },
+    {
+      "name": "1/2 tsp turmeric",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp mustard seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp fenugreek seeds",
+      "measure": ""
+    },
+    {
+      "name": "2 sprigs curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "3 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Crackle mustard and fenugreek seeds in oil, then saute the onion with curry leaves.",
+    "Add pumpkin cubes, turmeric and salt, and fry for a few minutes.",
+    "Pour in tamarind water and simmer until the pumpkin is just tender.",
+    "Add jaggery and chilli powder, and simmer until the pulusu turns glossy — sweet, sour and hot in one spoon.",
+    "Serve with hot rice."
+  ],
+  "tags": "veg,andhra"
+}

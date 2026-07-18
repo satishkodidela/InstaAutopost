@@ -1,0 +1,59 @@
+{
+  "name": "Gongura Pappu",
+  "category": "Dal",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "1 cup toor dal",
+      "measure": ""
+    },
+    {
+      "name": "2 cups gongura (sorrel) leaves, packed",
+      "measure": ""
+    },
+    {
+      "name": "1 onion, chopped",
+      "measure": ""
+    },
+    {
+      "name": "4 green chillies",
+      "measure": ""
+    },
+    {
+      "name": "1/2 tsp turmeric",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp mustard seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp cumin seeds",
+      "measure": ""
+    },
+    {
+      "name": "4 garlic cloves",
+      "measure": ""
+    },
+    {
+      "name": "2 dried red chillies",
+      "measure": ""
+    },
+    {
+      "name": "3 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Pressure cook toor dal with gongura leaves, onion, green chillies and turmeric.",
+    "Mash well so the tangy leaves blend into the dal; add salt and simmer.",
+    "Fry garlic, mustard, cumin and red chillies in hot oil until the garlic turns golden.",
+    "Pour the tempering over the pappu and cover for a minute so the aroma settles.",
+    "Serve with rice, ghee and a roasted papad."
+  ],
+  "tags": "veg,andhra"
+}

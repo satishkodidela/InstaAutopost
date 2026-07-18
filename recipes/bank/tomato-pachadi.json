@@ -1,0 +1,51 @@
+{
+  "name": "Tomato Pachadi",
+  "category": "Chutney",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "6 ripe tomatoes, chopped",
+      "measure": ""
+    },
+    {
+      "name": "6 dried red chillies",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp urad dal",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp mustard seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 small ball tamarind",
+      "measure": ""
+    },
+    {
+      "name": "3 garlic cloves",
+      "measure": ""
+    },
+    {
+      "name": "1 sprig curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "4 tbsp oil",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Fry urad dal and red chillies in oil until golden and set aside.",
+    "In the same oil, cook the tomatoes with tamarind and salt until soft and jammy.",
+    "Cool and grind everything coarsely with garlic — keep some texture.",
+    "Crackle mustard seeds and curry leaves in a spoon of oil.",
+    "Pour the tempering over the pachadi and serve with hot rice, idli or dosa."
+  ],
+  "tags": "veg,chutney,quick"
+}

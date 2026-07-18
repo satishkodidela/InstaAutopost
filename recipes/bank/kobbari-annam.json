@@ -1,0 +1,59 @@
+{
+  "name": "Kobbari Annam",
+  "category": "Rice",
+  "area": "Telugu",
+  "ingredients": [
+    {
+      "name": "2 cups cooked rice, cooled",
+      "measure": ""
+    },
+    {
+      "name": "1 cup fresh grated coconut",
+      "measure": ""
+    },
+    {
+      "name": "1 tsp mustard seeds",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp chana dal",
+      "measure": ""
+    },
+    {
+      "name": "1 tbsp urad dal",
+      "measure": ""
+    },
+    {
+      "name": "3 tbsp cashews",
+      "measure": ""
+    },
+    {
+      "name": "3 green chillies, slit",
+      "measure": ""
+    },
+    {
+      "name": "1 dried red chilli",
+      "measure": ""
+    },
+    {
+      "name": "2 sprigs curry leaves",
+      "measure": ""
+    },
+    {
+      "name": "3 tbsp ghee",
+      "measure": ""
+    },
+    {
+      "name": "salt",
+      "measure": ""
+    }
+  ],
+  "steps": [
+    "Heat ghee and fry cashews until golden; set aside.",
+    "Crackle mustard seeds, then fry chana dal, urad dal, chillies and curry leaves.",
+    "Add the grated coconut and saute gently until it smells sweet, without browning.",
+    "Add the cooled rice, salt and fried cashews.",
+    "Toss gently until every grain is coated white and serve warm."
+  ],
+  "tags": "veg,festival,quick"
+}
