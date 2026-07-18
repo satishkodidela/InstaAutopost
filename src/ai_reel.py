@@ -171,7 +171,9 @@ def prop_bible(recipe: dict) -> str:
     return (
         f" Continuity rules for EVERY shot: all cooking happens in {_vessel_for(recipe)} "
         "resting on a black cast-iron gas stove ring on the counter; exactly one "
-        "medium-tan South Indian hand (slim fingers, bare of rings and watch) performs "
+        # No skin-tone/ethnicity wording: person descriptors are prime Veo
+        # safety-filter bait (2026-07-18: a generation was rejected 5/5)
+        "adult hand with slim fingers, bare of rings and watch, performs "
         "every action, entering from the frame edge; every ingredient keeps the exact "
         "same cut and form in all shots; tempering shows clear shimmering oil with "
         "mustard seeds crackling; powders sprinkle from a small brass spoon as loose "
@@ -412,6 +414,7 @@ def generate_clips_veo(
     ref_image: str | None,
     out_dir: Path,
     keyframes: list[str] | None = None,
+    prop: str = "",
 ) -> list[Path]:
     from veo_client import build_reference, fetch_image, make_client, start_generation, wait_and_save
 
@@ -430,11 +433,15 @@ def generate_clips_veo(
     # pattern 429s on the second create and strands paid generations
     paths = []
     for i, p in enumerate(prompts):
-        # The audio filter false-positives non-deterministically and rejections
-        # are uncharged (googleapis/js-genai#1272) — retry the same request;
-        # last attempts drop our audio line in case it is the trigger
+        # The filter false-positives non-deterministically and rejections are
+        # uncharged (googleapis/js-genai#1272), so early attempts just retry.
+        # But when the filter objects to the PROMPT, identical retries never
+        # help (2026-07-18: one generation rejected 5/5) — later attempts
+        # escalate simplification: drop the audio line, then the prop-bible
+        # continuity block (person descriptors in it are prime filter bait).
         bare = p.replace(VEO_AUDIO_LINE, "").strip()
-        variants = [p, p, p, bare, bare]
+        minimal = bare.replace(prop, "").strip() if prop else bare
+        variants = [p, p, bare, bare, minimal, minimal]
         path = out_dir / f"gen{i:02d}.mp4"
         first = frames[i] if frames else None
         last = frames[i + 1] if frames else None
@@ -978,6 +985,7 @@ def make_ai_reel(
         if balance - n_gens * per_gen < 2 * n_gens * per_gen:
             print(f"  WARNING: Kie credits low ({balance:.0f}) — under ~2 days of reels left. Top up soon.", flush=True)
 
+    print(f"  set preset: {SET_NAME}", flush=True)
     ref_image = recipe.get("thumb") or None
     # Per-recipe story: the shot list comes from how the dish is actually
     # prepared. generate.py plans it once (with narration) and passes the
@@ -1012,7 +1020,9 @@ def make_ai_reel(
     )
     with tempfile.TemporaryDirectory() as tmp:
         if BACKEND == "veo":
-            clips = generate_clips_veo(prompts, ref_image, Path(tmp), keyframes)
+            clips = generate_clips_veo(
+                prompts, ref_image, Path(tmp), keyframes, prop=prop_bible(recipe)
+            )
         else:
             clips = generate_clips(prompts, ref_image, key, Path(tmp), keyframes)
 
@@ -1032,7 +1042,10 @@ def make_ai_reel(
                         print("  Kie credits too low to regenerate flagged clips", flush=True)
                         break
                     print(f"  regenerating flagged clip {i + 1}...", flush=True)
-                    clips[i] = _regenerate_clip(i, prompts, ref_image, key, Path(tmp), keyframes)
+                    clips[i] = _regenerate_clip(
+                        i, prompts, ref_image, key, Path(tmp), keyframes,
+                        prop=prop_bible(recipe),
+                    )
                 except Exception as exc:
                     print(f"  regeneration skipped ({exc}); keeping the original clip", flush=True)
 
@@ -1049,6 +1062,7 @@ def _regenerate_clip(
     key: str | None,
     out_dir: Path,
     keyframes: list[str] | None,
+    prop: str = "",
 ) -> Path:
     """One fresh generation of clip i (same prompt, same boundary frames).
 
@@ -1059,5 +1073,5 @@ def _regenerate_clip(
     sub_dir.mkdir(exist_ok=True)
     kf = keyframes[i:i + 2] if keyframes else None
     if BACKEND == "veo":
-        return generate_clips_veo([prompts[i]], ref_image, sub_dir, kf)[0]
+        return generate_clips_veo([prompts[i]], ref_image, sub_dir, kf, prop=prop)[0]
     return generate_clips([prompts[i]], ref_image, key, sub_dir, kf)[0]
