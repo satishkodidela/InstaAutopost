@@ -47,16 +47,23 @@ def _prompt(recipe: dict, n_beats: int, style_block: str, narrate: bool) -> str:
             f"serve it while staying true to the recipe): {recipe['story_angle']}"
         )
 
+    cam_keys = (
+        '"scale": "extreme close-up" | "close-up" | "medium shot" | '
+        '"overhead top-down" | "wide shot", '
+        '"angle": "eye level" | "high 45-degree" | "low angle" | "overhead", '
+        '"move": "locked off" | "slow push-in" | "slow orbit" | '
+        '"slow tilt-up reveal" | "rack focus"'
+    )
     if narrate:
         item = (
             '{"shot": "<one vivid ENGLISH sentence describing what the camera sees>", '
-            '"camera": "fixed" or "slow push-in", '
+            + cam_keys + ', '
             '"vo": "<one natural spoken line in TELANGANA TELUGU (Telugu script) for THIS shot>"}'
         )
     else:
         item = (
             '{"shot": "<one vivid sentence describing what the camera sees>", '
-            '"camera": "fixed" or "slow push-in"}'
+            + cam_keys + '}'
         )
 
     archetype = HOOK_ARCHETYPES[date.today().timetuple().tm_yday % len(HOOK_ARCHETYPES)]
@@ -127,6 +134,18 @@ Rules — realism above all:
 - The final shot recreates shot 1's framing with the finished {name},
   garnished and steaming, and must END MID-ACTION (steam still rising, a
   sprinkle mid-fall) so looping back to shot 1 reads as continuous motion.
+- Cinematography — direct like a food-film DP, one primary camera idea per
+  shot (choose scale/angle/move from the allowed values only):
+  * Shot 1: extreme close-up or close-up of the finished dish, slow push-in.
+  * The ingredients shot: overhead top-down, locked off.
+  * Include at least ONE extreme close-up texture moment mid-process (oil
+    shimmering, spice coating clinging, steam curling off the surface).
+  * The serving shot: high 45-degree or low angle — the hero angle.
+  * The final shot repeats shot 1's scale and angle exactly (the loop).
+  * Never give two consecutive shots the same scale AND angle — change at
+    least one between neighbours; cutting between identical framings reads
+    as a jump cut.
+  * Movement is always slow and subtle — the food provides the motion.
 - Physical realism in every shot: tempering is clear shimmering oil with
   mustard seeds crackling (never foam or froth), powders are sprinkled from
   a small spoon (never crumbled from fingers), liquids pour in thin streams,
@@ -185,8 +204,69 @@ def _generate_shots(recipe: dict, n_beats: int, style_block: str, narrate: bool)
     return valid
 
 
+# Cinematic camera vocabulary (Veo interprets professional film terms with
+# high fidelity; Google's guide: lead the prompt with cinematography, keep
+# ONE primary camera movement per shot, phrased as its own sentence).
+SCALES = ("extreme close-up", "close-up", "medium shot", "overhead top-down", "wide shot")
+ANGLES = {
+    "eye level": "eye level",
+    "high 45-degree": "a high 45-degree angle",
+    "low angle": "a low angle",
+    "overhead": "directly overhead",
+}
+MOVES = ("locked off", "slow push-in", "slow orbit", "slow tilt-up reveal", "rack focus")
+
+
+def _camera_spec(shot: dict) -> tuple[str, str, str] | None:
+    """Normalized (scale, angle, move), or None when the LLM used the legacy
+    single "camera" string (or nothing usable)."""
+    scale = (shot.get("scale") or "").strip().lower()
+    if scale not in SCALES:
+        return None
+    angle = (shot.get("angle") or "").strip().lower()
+    move = (shot.get("move") or "").strip().lower()
+    return (
+        scale,
+        angle if angle in ANGLES else "eye level",
+        move if move in MOVES else "locked off",
+    )
+
+
+def _apply_cinematography(shots: list[dict]) -> None:
+    """Normalize per-shot camera specs and enforce the editor rules the LLM
+    tends to drift on: the loop close mirrors shot 1's framing, and adjacent
+    shots never share the same scale+angle (reads as a jump cut)."""
+    specs = [_camera_spec(s) for s in shots]
+    if specs[0] is None:
+        return  # legacy plan — leave the old "camera" strings alone
+    for i, sp in enumerate(specs):
+        if sp is None:
+            specs[i] = ("close-up", "eye level", "locked off")
+    specs[-1] = (specs[0][0], specs[0][1], specs[-1][2])  # loop mirrors the hook
+    for i in range(1, len(specs) - 1):
+        if (specs[i][0], specs[i][1]) == (specs[i - 1][0], specs[i - 1][1]):
+            for alt in ("close-up", "medium shot", "extreme close-up", "wide shot"):
+                if alt != specs[i - 1][0]:
+                    specs[i] = (alt, specs[i][1], specs[i][2])
+                    break
+    for shot, (scale, angle, move) in zip(shots, specs):
+        shot["scale"], shot["angle"], shot["move"] = scale, angle, move
+
+
 def _beat(shot: dict) -> str:
-    return f"{shot['shot'].strip().rstrip('.')}. Camera: {shot.get('camera', 'fixed')}."
+    """Compose the video-prompt beat: cinematography FIRST (scale+angle open
+    the shot line — keyframes compose from it too), the movement after
+    "Camera:" so keyframes.state_text can strip what a still can't show."""
+    text = shot["shot"].strip().rstrip(".")
+    spec = _camera_spec(shot)
+    if spec is None:
+        return f"{text}. Camera: {shot.get('camera', 'fixed')}."
+    scale, angle, move = spec
+    head = (
+        "Overhead top-down shot" if scale == "overhead top-down"
+        else f"{scale.capitalize()} from {ANGLES[angle]}"
+    )
+    return f"{head}: {text}. Camera: {move}."
 
 
 def plan_reel(recipe: dict, n_beats: int, style_block: str) -> dict | None:
@@ -200,6 +280,7 @@ def plan_reel(recipe: dict, n_beats: int, style_block: str) -> dict | None:
         shots = _generate_shots(recipe, n_beats, style_block, narrate=True)
         if not shots:
             return None
+        _apply_cinematography(shots)
         hook = (shots[0].get("hook") or "").strip() or None
         # The overlay renders each block with ONE font: Noto Sans Telugu has
         # no Latin letters and no emoji, DejaVu has no Telugu. A Telugu hook

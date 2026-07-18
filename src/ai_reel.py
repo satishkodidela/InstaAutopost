@@ -60,7 +60,10 @@ KIE_MODEL = os.environ.get("KIE_SEEDANCE_MODEL") or "bytedance/seedance-2-mini"
 RESOLUTION = os.environ.get("KIE_RESOLUTION") or "480p"
 TARGET_SECONDS = int(os.environ.get("REEL_SECONDS") or "24")
 BEAT_SECONDS = 4
-GEN_SECONDS = 8 if BACKEND == "veo" else 12  # Veo 3.1 caps at 8s/generation
+# Veo 3.1 caps at 8s/generation. KIE_GEN_SECONDS raises the Kie chunk for
+# longer-single-pass models (e.g. Seedance 2.5: native 30s = one whole
+# reel per generation, no clip boundaries at all) once publicly available.
+GEN_SECONDS = 8 if BACKEND == "veo" else int(os.environ.get("KIE_GEN_SECONDS") or "12")
 BEATS_PER_GEN = GEN_SECONDS // BEAT_SECONDS
 # Measured burn rates: mini@480p 9.5, seedance-2@720p 41.0; mini@720p ~19 (2x of 480p
 # per Kie pricing). Set KIE_CREDITS_PER_SECOND alongside model/resolution changes so
@@ -237,23 +240,33 @@ def build_beats(
     n_action = max(1, n_gens * BEATS_PER_GEN - 5)
     stride = max(1, len(steps) // n_action)
     # Bowls/counter stay unnamed here: the set preset (SET_PRESETS) owns the
-    # look, and naming brass/dark-wood in the beats fought 4 of 5 presets
+    # look, and naming brass/dark-wood in the beats fought 4 of 5 presets.
+    # Framing alternates per action shot so adjacent template beats never
+    # repeat scale+angle (identical framings cut like a jump cut).
+    action_cams = [
+        ("Close-up from eye level", "slow push-in"),
+        ("Medium shot from a high 45-degree angle", "locked off"),
+        ("Extreme close-up from eye level", "rack focus"),
+    ]
     actions = [
         (
-            f"hands entering from frame edge, {_action_fragment(steps[min(i * stride, len(steps) - 1)])}, "
-            f"using the same ingredients and small bowls from the earlier shot, one precise action"
+            f"{action_cams[i % len(action_cams)][0]}: hands entering from frame edge, "
+            f"{_action_fragment(steps[min(i * stride, len(steps) - 1)])}, "
+            f"using the same ingredients and small bowls from the earlier shot, one "
+            f"precise action. Camera: {action_cams[i % len(action_cams)][1]}"
         )
         for i in range(n_action)
     ]
 
     hook = (
-        f"Extreme close-up of the finished {name} exactly as {hook_anchor}: backlit "
-        f"steam rising, a spoon lifting one portion, glossy texture. Camera: slow push-in."
+        f"Extreme close-up from eye level: the finished {name} exactly as {hook_anchor}, "
+        f"backlit steam rising, a spoon lifting one portion, glossy texture. "
+        f"Camera: slow push-in."
     )
     ingredients = (
-        f"Overhead shot of the exact ingredients for {name}, exactly one small "
+        f"Overhead top-down shot: the exact ingredients for {name}, exactly one small "
         f"bowl per ingredient on the counter: {ing_list} — these same ingredients "
-        f"are used in the following cooking shots. Camera: fixed."
+        f"are used in the following cooking shots. Camera: locked off."
     )
     # Serving payoff is the share moment for a Telugu audience (the rice
     # plate), so it takes the slot right before the loop close. Sweets and
@@ -266,22 +279,23 @@ def build_beats(
         else "onto a banana leaf on a steel plate"
     )
     serve = (
-        f"the finished {name} served {surface}, "
-        f"a spoon lifting a portion, glossy texture. Camera: fixed."
+        f"Medium shot from a low angle: the finished {name} served {surface}, "
+        f"a spoon lifting a portion, glossy texture — the hero angle. "
+        f"Camera: slow orbit."
     )
     loop_close = (
-        f"The finished {name} exactly as {close_anchor}, same framing as the opening "
-        f"shot, steam rising, a garnish falling mid-air (ends mid-action for a "
-        f"seamless loop). Camera: slow push-in."
+        f"Extreme close-up from eye level: the finished {name} exactly as {close_anchor}, "
+        f"same framing as the opening shot, steam rising, a garnish falling mid-air "
+        f"(ends mid-action for a seamless loop). Camera: slow push-in."
     )
 
-    beats = [hook, ingredients, *[f"{a}. Camera: fixed." for a in actions], serve, loop_close]
+    beats = [hook, ingredients, *[f"{a}." for a in actions], serve, loop_close]
     # Trim/pad to exactly n_gens * BEATS_PER_GEN, keeping first two and last two
     want = n_gens * BEATS_PER_GEN
     while len(beats) > want:
         beats.pop(2)
     while len(beats) < want:
-        beats.insert(2, f"macro texture close-up of {name}, steam curling. Camera: fixed.")
+        beats.insert(2, f"Extreme close-up from eye level: macro texture of {name}, steam curling. Camera: rack focus.")
     return beats
 
 

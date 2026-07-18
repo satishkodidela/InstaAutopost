@@ -83,6 +83,7 @@ jobs:
           VIDEO_BACKEND: ${{ vars.VIDEO_BACKEND }}
           KIE_RESOLUTION: ${{ vars.KIE_RESOLUTION }}
           KIE_SEEDANCE_MODEL: ${{ vars.KIE_SEEDANCE_MODEL }}
+          KIE_GEN_SECONDS: ${{ vars.KIE_GEN_SECONDS }}
           VEO_MODEL: ${{ vars.VEO_MODEL }}
           SARVAM_SPEAKER: ${{ vars.SARVAM_SPEAKER }}
           ELEVEN_LABS_VOICE_ID: ${{ vars.ELEVEN_LABS_VOICE_ID }}
