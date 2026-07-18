@@ -268,5 +268,14 @@
     "format": "carousel",
     "kind": null,
     "voiceover": null
+  },
+  {
+    "date": "2026-07-18",
+    "name": "Soy-Glazed Meatloaves with Wasabi Mashed Potatoes & Roasted Carrots",
+    "category": "Beef",
+    "area": "United States",
+    "format": "reel",
+    "kind": "ai",
+    "voiceover": "te"
   }
 ]
