@@ -157,6 +157,32 @@ Rules — realism above all:
 Return ONLY the JSON array, no markdown."""
 
 
+def _shots_schema(narrate: bool):
+    """Typed response schema: constrained decoding can't emit malformed JSON
+    (the richer camera schema made free-form JSON flaky — 2026-07-18 a run
+    failed both parse attempts on the same delimiter error) and the enums
+    make invalid camera vocabulary unrepresentable at decode time."""
+    from google.genai import types
+
+    props = {
+        "shot": types.Schema(type=types.Type.STRING),
+        "scale": types.Schema(type=types.Type.STRING, enum=list(SCALES)),
+        "angle": types.Schema(type=types.Type.STRING, enum=list(ANGLES)),
+        "move": types.Schema(type=types.Type.STRING, enum=list(MOVES)),
+    }
+    required = ["shot", "scale", "angle", "move"]
+    if narrate:
+        props["vo"] = types.Schema(type=types.Type.STRING)
+        props["hook"] = types.Schema(type=types.Type.STRING, nullable=True)
+        required.append("vo")
+    return types.Schema(
+        type=types.Type.ARRAY,
+        items=types.Schema(
+            type=types.Type.OBJECT, properties=props, required=required
+        ),
+    )
+
+
 def _generate_shots(recipe: dict, n_beats: int, style_block: str, narrate: bool):
     """Raw shot dicts from the LLM, trimmed/padded to exactly n_beats; None if disabled."""
     api_key = os.environ.get("GEMINI_API_KEY")
@@ -173,6 +199,7 @@ def _generate_shots(recipe: dict, n_beats: int, style_block: str, narrate: bool)
             contents=_prompt(recipe, n_beats, style_block, narrate),
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
+                response_schema=_shots_schema(narrate),
                 # Narration roughly doubles the payload; give headroom so the
                 # JSON array never truncates mid-shot
                 max_output_tokens=8192,
