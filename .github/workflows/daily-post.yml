@@ -15,6 +15,11 @@ on:
         required: false
         default: false
         type: boolean
+      force:
+        description: "Run even if today already posted (posts a second time on success!)"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -40,7 +45,7 @@ jobs:
         id: dedupe
         run: |
           TODAY=$(TZ=Asia/Kolkata date +%F)
-          if [ -f "posts/$TODAY.txt" ]; then
+          if [ -f "posts/$TODAY.txt" ] && [ "${{ inputs.force }}" != "true" ]; then
             echo "posts/$TODAY.txt already on main — another run posted today; skipping."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
