@@ -295,5 +295,14 @@
     "format": "carousel",
     "kind": null,
     "voiceover": null
+  },
+  {
+    "date": "2026-07-19",
+    "name": "Avakaya",
+    "category": "Pickle",
+    "area": "Telugu",
+    "format": "reel",
+    "kind": "ai",
+    "voiceover": "te"
   }
 ]
