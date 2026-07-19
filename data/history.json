@@ -286,5 +286,14 @@
     "format": "reel",
     "kind": "ai",
     "voiceover": "te"
+  },
+  {
+    "date": "2026-07-19",
+    "name": "Mamidikaya Pappu",
+    "category": "Dal",
+    "area": "Telugu",
+    "format": "carousel",
+    "kind": null,
+    "voiceover": null
   }
 ]
