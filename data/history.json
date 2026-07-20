@@ -304,5 +304,14 @@
     "format": "reel",
     "kind": "ai",
     "voiceover": "te"
+  },
+  {
+    "date": "2026-07-20",
+    "name": "Gongura Pappu",
+    "category": "Dal",
+    "area": "Telugu",
+    "format": "carousel",
+    "kind": null,
+    "voiceover": null
   }
 ]
