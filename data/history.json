@@ -322,5 +322,14 @@
     "format": "carousel",
     "kind": null,
     "voiceover": null
+  },
+  {
+    "date": "2026-07-22",
+    "name": "Allam Pachadi",
+    "category": "Chutney",
+    "area": "Telugu",
+    "format": "reel",
+    "kind": "ai",
+    "voiceover": "te"
   }
 ]
