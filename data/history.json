@@ -331,5 +331,14 @@
     "format": "reel",
     "kind": "ai",
     "voiceover": "te"
+  },
+  {
+    "date": "2026-07-23",
+    "name": "Sarva Pindi",
+    "category": "Breakfast",
+    "area": "Telugu",
+    "format": "carousel",
+    "kind": null,
+    "voiceover": null
   }
 ]
