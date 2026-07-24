@@ -340,5 +340,14 @@
     "format": "carousel",
     "kind": null,
     "voiceover": null
+  },
+  {
+    "date": "2026-07-24",
+    "name": "Mirapakaya Bajji",
+    "category": "Snack",
+    "area": "Telugu",
+    "format": "reel",
+    "kind": "ai",
+    "voiceover": "te"
   }
 ]
