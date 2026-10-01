@@ -961,5 +961,14 @@
     "format": "carousel",
     "kind": null,
     "voiceover": null
+  },
+  {
+    "date": "2026-10-01",
+    "name": "Apple pie pops",
+    "category": "Dessert",
+    "area": "",
+    "format": "carousel",
+    "kind": null,
+    "voiceover": null
   }
 ]
