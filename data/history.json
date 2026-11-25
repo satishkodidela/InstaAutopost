@@ -1447,5 +1447,14 @@
     "format": "carousel",
     "kind": null,
     "voiceover": null
+  },
+  {
+    "date": "2026-11-25",
+    "name": "Dutch stroopwafel",
+    "category": "Dessert",
+    "area": "Netherlands",
+    "format": "carousel",
+    "kind": null,
+    "voiceover": null
   }
 ]
