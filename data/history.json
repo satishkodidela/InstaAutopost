@@ -1456,5 +1456,14 @@
     "format": "carousel",
     "kind": null,
     "voiceover": null
+  },
+  {
+    "date": "2026-11-26",
+    "name": "Chicken Congee",
+    "category": "Chicken",
+    "area": "Chinese",
+    "format": "carousel",
+    "kind": null,
+    "voiceover": null
   }
 ]
