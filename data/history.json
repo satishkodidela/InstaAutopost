@@ -1474,5 +1474,14 @@
     "format": "carousel",
     "kind": null,
     "voiceover": null
+  },
+  {
+    "date": "2026-11-28",
+    "name": "Fettuccine Alfredo",
+    "category": "Pasta",
+    "area": "Italian",
+    "format": "carousel",
+    "kind": null,
+    "voiceover": null
   }
 ]
